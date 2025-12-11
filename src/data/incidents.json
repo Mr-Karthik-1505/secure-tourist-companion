@@ -1,0 +1,116 @@
+[
+  {
+    "id": "inc_001",
+    "title": "Medical Emergency - Heat Stroke",
+    "severity": "high",
+    "status": "reported",
+    "location": {
+      "name": "Grand Palace Area",
+      "lat": 13.7500,
+      "lng": 100.4914
+    },
+    "timestamp": "2024-12-10T14:30:00Z",
+    "description": "Tourist reported symptoms of heat stroke near Grand Palace. Immediate medical attention required.",
+    "affectedUser": "usr_004",
+    "geofenceId": "geo_001",
+    "responders": [],
+    "timeline": [
+      { "time": "2024-12-10T14:30:00Z", "event": "Incident reported via mobile app" },
+      { "time": "2024-12-10T14:32:00Z", "event": "Alert sent to nearby responders" }
+    ],
+    "attachments": [
+      "https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?w=400&h=300&fit=crop"
+    ]
+  },
+  {
+    "id": "inc_002",
+    "title": "Lost Passport Report",
+    "severity": "medium",
+    "status": "assigned",
+    "location": {
+      "name": "Chatuchak Market",
+      "lat": 13.7999,
+      "lng": 100.5504
+    },
+    "timestamp": "2024-12-10T11:15:00Z",
+    "description": "Tourist reported lost passport at Chatuchak Weekend Market. Embassy coordination required.",
+    "affectedUser": "usr_002",
+    "geofenceId": "geo_002",
+    "responders": ["resp_001"],
+    "timeline": [
+      { "time": "2024-12-10T11:15:00Z", "event": "Incident reported at info desk" },
+      { "time": "2024-12-10T11:20:00Z", "event": "Case assigned to Officer Somchai" },
+      { "time": "2024-12-10T11:45:00Z", "event": "Embassy notified" }
+    ],
+    "attachments": []
+  },
+  {
+    "id": "inc_003",
+    "title": "Geofence Breach - Restricted Zone",
+    "severity": "high",
+    "status": "responding",
+    "location": {
+      "name": "Border Checkpoint Area",
+      "lat": 13.7234,
+      "lng": 100.4567
+    },
+    "timestamp": "2024-12-10T09:45:00Z",
+    "description": "Automated alert: Tourist crossed into restricted military zone. Immediate intervention required.",
+    "affectedUser": "usr_003",
+    "geofenceId": "geo_003",
+    "responders": ["resp_002", "resp_003"],
+    "timeline": [
+      { "time": "2024-12-10T09:45:00Z", "event": "Geofence breach detected" },
+      { "time": "2024-12-10T09:46:00Z", "event": "Automated SMS sent to tourist" },
+      { "time": "2024-12-10T09:48:00Z", "event": "Security team dispatched" },
+      { "time": "2024-12-10T10:00:00Z", "event": "Contact established with tourist" }
+    ],
+    "attachments": []
+  },
+  {
+    "id": "inc_004",
+    "title": "Scam Report - Taxi Overcharge",
+    "severity": "low",
+    "status": "resolved",
+    "location": {
+      "name": "Suvarnabhumi Airport",
+      "lat": 13.6900,
+      "lng": 100.7501
+    },
+    "timestamp": "2024-12-09T22:30:00Z",
+    "description": "Tourist reported significant overcharge by unlicensed taxi. Refund facilitated.",
+    "affectedUser": "usr_005",
+    "geofenceId": "geo_004",
+    "responders": ["resp_001"],
+    "timeline": [
+      { "time": "2024-12-09T22:30:00Z", "event": "Complaint filed via app" },
+      { "time": "2024-12-09T23:00:00Z", "event": "Tourist police contacted" },
+      { "time": "2024-12-10T00:30:00Z", "event": "Refund negotiated" },
+      { "time": "2024-12-10T01:00:00Z", "event": "Case resolved" }
+    ],
+    "attachments": [
+      "https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=400&h=300&fit=crop"
+    ]
+  },
+  {
+    "id": "inc_005",
+    "title": "Check-in Overdue Alert",
+    "severity": "medium",
+    "status": "reported",
+    "location": {
+      "name": "Khao San Road",
+      "lat": 13.7589,
+      "lng": 100.4974
+    },
+    "timestamp": "2024-12-10T16:00:00Z",
+    "description": "Tourist has not checked in for 48 hours. Last known location: Khao San Road area.",
+    "affectedUser": "usr_001",
+    "geofenceId": "geo_001",
+    "responders": [],
+    "timeline": [
+      { "time": "2024-12-10T16:00:00Z", "event": "Automated overdue alert triggered" },
+      { "time": "2024-12-10T16:05:00Z", "event": "Emergency contact notified" }
+    ],
+    "attachments": []
+  }
+]

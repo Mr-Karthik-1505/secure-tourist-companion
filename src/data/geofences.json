@@ -1,0 +1,107 @@
+[
+  {
+    "id": "geo_001",
+    "name": "Bangkok Old City",
+    "description": "Historic district including Grand Palace and Wat Phra Kaew",
+    "type": "safe_zone",
+    "enabled": true,
+    "color": "#0B6E4F",
+    "vertices": [
+      { "lat": 13.7600, "lng": 100.4850 },
+      { "lat": 13.7600, "lng": 100.5050 },
+      { "lat": 13.7400, "lng": 100.5050 },
+      { "lat": 13.7400, "lng": 100.4850 }
+    ],
+    "center": { "lat": 13.7500, "lng": 100.4950 },
+    "autoNotify": true,
+    "notifyOnEntry": true,
+    "notifyOnExit": true,
+    "contacts": ["emergency@tourism.gov.th", "+66 2 123 4567"],
+    "activeIncidents": 2,
+    "totalTourists": 156
+  },
+  {
+    "id": "geo_002",
+    "name": "Chatuchak District",
+    "description": "Major shopping and market area",
+    "type": "monitored_zone",
+    "enabled": true,
+    "color": "#00A3B4",
+    "vertices": [
+      { "lat": 13.8100, "lng": 100.5400 },
+      { "lat": 13.8100, "lng": 100.5650 },
+      { "lat": 13.7900, "lng": 100.5650 },
+      { "lat": 13.7900, "lng": 100.5400 }
+    ],
+    "center": { "lat": 13.8000, "lng": 100.5525 },
+    "autoNotify": true,
+    "notifyOnEntry": false,
+    "notifyOnExit": true,
+    "contacts": ["market.security@bangkok.gov.th"],
+    "activeIncidents": 1,
+    "totalTourists": 89
+  },
+  {
+    "id": "geo_003",
+    "name": "Restricted Military Zone",
+    "description": "Restricted access area - requires special permit",
+    "type": "restricted_zone",
+    "enabled": true,
+    "color": "#E25B4A",
+    "vertices": [
+      { "lat": 13.7300, "lng": 100.4500 },
+      { "lat": 13.7300, "lng": 100.4650 },
+      { "lat": 13.7150, "lng": 100.4650 },
+      { "lat": 13.7150, "lng": 100.4500 }
+    ],
+    "center": { "lat": 13.7225, "lng": 100.4575 },
+    "autoNotify": true,
+    "notifyOnEntry": true,
+    "notifyOnExit": false,
+    "contacts": ["security@military.gov.th", "+66 2 987 6543"],
+    "activeIncidents": 1,
+    "totalTourists": 0
+  },
+  {
+    "id": "geo_004",
+    "name": "Suvarnabhumi Airport",
+    "description": "International airport and surrounding transportation hub",
+    "type": "transport_hub",
+    "enabled": true,
+    "color": "#0B6E4F",
+    "vertices": [
+      { "lat": 13.7000, "lng": 100.7400 },
+      { "lat": 13.7000, "lng": 100.7600 },
+      { "lat": 13.6800, "lng": 100.7600 },
+      { "lat": 13.6800, "lng": 100.7400 }
+    ],
+    "center": { "lat": 13.6900, "lng": 100.7500 },
+    "autoNotify": false,
+    "notifyOnEntry": false,
+    "notifyOnExit": false,
+    "contacts": ["airport.info@airports.go.th"],
+    "activeIncidents": 0,
+    "totalTourists": 342
+  },
+  {
+    "id": "geo_005",
+    "name": "Sukhumvit Entertainment",
+    "description": "Entertainment and nightlife district",
+    "type": "monitored_zone",
+    "enabled": true,
+    "color": "#00A3B4",
+    "vertices": [
+      { "lat": 13.7500, "lng": 100.5300 },
+      { "lat": 13.7500, "lng": 100.5600 },
+      { "lat": 13.7350, "lng": 100.5600 },
+      { "lat": 13.7350, "lng": 100.5300 }
+    ],
+    "center": { "lat": 13.7425, "lng": 100.5450 },
+    "autoNotify": true,
+    "notifyOnEntry": false,
+    "notifyOnExit": true,
+    "contacts": ["tourist.police@bangkok.gov.th"],
+    "activeIncidents": 0,
+    "totalTourists": 78
+  }
+]
