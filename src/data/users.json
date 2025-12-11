@@ -1,0 +1,132 @@
+[
+  {
+    "id": "usr_001",
+    "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f5dE1f",
+    "name": "Ananya Singh",
+    "passport": "K8721****",
+    "country": "India",
+    "status": "verified",
+    "photo": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop",
+    "validFrom": "2024-01-15",
+    "validUntil": "2025-01-15",
+    "emergencyContact": {
+      "name": "Raj Singh",
+      "phone": "+91 98765 43210",
+      "relation": "Spouse"
+    },
+    "tripDetails": {
+      "destination": "Thailand",
+      "arrivalDate": "2024-12-01",
+      "departureDate": "2024-12-15",
+      "accommodation": "Grand Hyatt Bangkok"
+    },
+    "lastCheckIn": "2024-12-10T14:30:00Z",
+    "location": { "lat": 13.7563, "lng": 100.5018 },
+    "kycCID": "QmX7b8VmLpJqN3sK9wE4rT2yU6iO8pA1sD3fG5hJ7kL9mN",
+    "dataHash": "0x8a7d6f5e4c3b2a1908070605040302010a0b0c0d0e0f101112131415161718191a"
+  },
+  {
+    "id": "usr_002",
+    "address": "0x8ba1f109551bD432803012645Ac136ddd64DBA72",
+    "name": "Michael Chen",
+    "passport": "E4521****",
+    "country": "Singapore",
+    "status": "pending",
+    "photo": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop",
+    "validFrom": "2024-02-01",
+    "validUntil": "2025-02-01",
+    "emergencyContact": {
+      "name": "Lisa Chen",
+      "phone": "+65 9876 5432",
+      "relation": "Sister"
+    },
+    "tripDetails": {
+      "destination": "Thailand",
+      "arrivalDate": "2024-12-05",
+      "departureDate": "2024-12-20",
+      "accommodation": "Marriott Sukhumvit"
+    },
+    "lastCheckIn": "2024-12-09T09:15:00Z",
+    "location": { "lat": 13.7469, "lng": 100.5349 },
+    "kycCID": "QmY8c9WnMqKrN4tL0xF5sU7jP9qB2tE4uG6iK8lN0oQ2rP",
+    "dataHash": "0x9b8e7f6g5h4i3j2k1l0m9n8o7p6q5r4s3t2u1v0w9x8y7z6"
+  },
+  {
+    "id": "usr_003",
+    "address": "0xdD2FD4581271e230360230F9337D5c0430Bf44C0",
+    "name": "Emma Thompson",
+    "passport": "GB982****",
+    "country": "United Kingdom",
+    "status": "verified",
+    "photo": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop",
+    "validFrom": "2024-03-10",
+    "validUntil": "2025-03-10",
+    "emergencyContact": {
+      "name": "James Thompson",
+      "phone": "+44 7700 900123",
+      "relation": "Brother"
+    },
+    "tripDetails": {
+      "destination": "Thailand",
+      "arrivalDate": "2024-12-08",
+      "departureDate": "2024-12-22",
+      "accommodation": "Centara Grand"
+    },
+    "lastCheckIn": "2024-12-10T16:45:00Z",
+    "location": { "lat": 13.7294, "lng": 100.5201 },
+    "kycCID": "QmZ9d0XoNsLrO5uM1yG6tV8kQ0rC3vF5wH7jL9nP1sT3uR",
+    "dataHash": "0xac9f8g7h6i5j4k3l2m1n0o9p8q7r6s5t4u3v2w1x0y9z8a7"
+  },
+  {
+    "id": "usr_004",
+    "address": "0x2546BcD3c84621e976D8185a91A922aE77ECEc30",
+    "name": "Yuki Tanaka",
+    "passport": "TK123****",
+    "country": "Japan",
+    "status": "alert",
+    "photo": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop",
+    "validFrom": "2024-01-20",
+    "validUntil": "2025-01-20",
+    "emergencyContact": {
+      "name": "Kenji Tanaka",
+      "phone": "+81 90 1234 5678",
+      "relation": "Father"
+    },
+    "tripDetails": {
+      "destination": "Thailand",
+      "arrivalDate": "2024-12-03",
+      "departureDate": "2024-12-18",
+      "accommodation": "Novotel Ploenchit"
+    },
+    "lastCheckIn": "2024-12-08T11:20:00Z",
+    "location": { "lat": 13.7400, "lng": 100.5553 },
+    "kycCID": "QmA0e1YpOtMsP6vN2zH7uW9lR1sD4wG6xI8kM0nQ2tU4vS",
+    "dataHash": "0xbd0g9h8i7j6k5l4m3n2o1p0q9r8s7t6u5v4w3x2y1z0a9b8"
+  },
+  {
+    "id": "usr_005",
+    "address": "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
+    "name": "Carlos Rodriguez",
+    "passport": "MX456****",
+    "country": "Mexico",
+    "status": "verified",
+    "photo": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop",
+    "validFrom": "2024-04-05",
+    "validUntil": "2025-04-05",
+    "emergencyContact": {
+      "name": "Maria Rodriguez",
+      "phone": "+52 55 1234 5678",
+      "relation": "Mother"
+    },
+    "tripDetails": {
+      "destination": "Thailand",
+      "arrivalDate": "2024-12-10",
+      "departureDate": "2024-12-25",
+      "accommodation": "Siam Kempinski"
+    },
+    "lastCheckIn": "2024-12-10T18:00:00Z",
+    "location": { "lat": 13.7466, "lng": 100.5391 },
+    "kycCID": "QmB1f2ZqPuNtQ7wO3aI8vX0mS2tE5xH7yJ9lN1oR3uV5wT",
+    "dataHash": "0xce1h0i9j8k7l6m5n4o3p2q1r0s9t8u7v6w5x4y3z2a1b0c9"
+  }
+]
