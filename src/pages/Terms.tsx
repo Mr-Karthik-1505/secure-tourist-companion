@@ -3,14 +3,93 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, Download, Scale, Users, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { jsPDF } from "jspdf";
 
 export default function Terms() {
   const { toast } = useToast();
 
   const handleDownloadPDF = () => {
+    const doc = new jsPDF();
+    
+    // Title
+    doc.setFontSize(24);
+    doc.setTextColor(11, 110, 79);
+    doc.text("Terms of Service", 105, 20, { align: "center" });
+    
+    // Subtitle
+    doc.setFontSize(10);
+    doc.setTextColor(128, 128, 128);
+    doc.text("Smart Tourist Safety Platform", 105, 28, { align: "center" });
+    doc.text("Last updated: December 10, 2024", 105, 34, { align: "center" });
+    
+    // Content
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    
+    let y = 50;
+    
+    doc.setFontSize(14);
+    doc.text("1. Acceptance of Terms", 20, y);
+    y += 10;
+    doc.setFontSize(10);
+    const acceptanceText = "By accessing or using the Smart Tourist Safety platform, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our services.";
+    const splitAcceptance = doc.splitTextToSize(acceptanceText, 170);
+    doc.text(splitAcceptance, 20, y);
+    y += splitAcceptance.length * 5 + 10;
+    
+    doc.setFontSize(14);
+    doc.text("2. User Responsibilities", 20, y);
+    y += 10;
+    doc.setFontSize(10);
+    doc.text("As a user, you agree to:", 20, y);
+    y += 7;
+    doc.text("• Provide accurate information during registration", 25, y);
+    y += 6;
+    doc.text("• Keep your Digital ID credentials secure", 25, y);
+    y += 6;
+    doc.text("• Enable location services for safety features", 25, y);
+    y += 6;
+    doc.text("• Comply with local laws of your destination", 25, y);
+    y += 6;
+    doc.text("• Not misuse the emergency alert system", 25, y);
+    y += 15;
+    
+    doc.setFontSize(14);
+    doc.text("3. Service Limitations", 20, y);
+    y += 10;
+    doc.setFontSize(10);
+    const limitationsText = "While we strive to provide reliable safety services, we cannot guarantee uninterrupted service availability. Our platform supplements, not replaces, standard emergency services.";
+    const splitLimitations = doc.splitTextToSize(limitationsText, 170);
+    doc.text(splitLimitations, 20, y);
+    y += splitLimitations.length * 5 + 10;
+    
+    doc.setFontSize(14);
+    doc.text("4. Blockchain & Digital ID", 20, y);
+    y += 10;
+    doc.setFontSize(10);
+    const blockchainText = "Your Digital ID is stored on a blockchain network. Once created, the transaction is immutable. However, you can revoke your ID at any time to invalidate it for verification purposes.";
+    const splitBlockchain = doc.splitTextToSize(blockchainText, 170);
+    doc.text(splitBlockchain, 20, y);
+    y += splitBlockchain.length * 5 + 10;
+    
+    doc.setFontSize(14);
+    doc.text("5. Limitation of Liability", 20, y);
+    y += 10;
+    doc.setFontSize(10);
+    const liabilityText = "To the maximum extent permitted by law, Smart Tourist Safety shall not be liable for any indirect, incidental, special, consequential, or punitive damages.";
+    const splitLiability = doc.splitTextToSize(liabilityText, 170);
+    doc.text(splitLiability, 20, y);
+    
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(128, 128, 128);
+    doc.text("© 2024 Smart Tourist Safety. All rights reserved.", 105, 285, { align: "center" });
+    
+    doc.save("terms-of-service.pdf");
+    
     toast({
-      title: "Download Started",
-      description: "Terms of Service PDF is being generated...",
+      title: "Download Complete",
+      description: "Terms of Service PDF has been downloaded.",
     });
   };
 

@@ -3,14 +3,95 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Shield, Download, Lock, Eye, Database } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { jsPDF } from "jspdf";
 
 export default function Policy() {
   const { toast } = useToast();
 
   const handleDownloadPDF = () => {
+    const doc = new jsPDF();
+    
+    // Title
+    doc.setFontSize(24);
+    doc.setTextColor(11, 110, 79);
+    doc.text("Privacy Policy", 105, 20, { align: "center" });
+    
+    // Subtitle
+    doc.setFontSize(10);
+    doc.setTextColor(128, 128, 128);
+    doc.text("Smart Tourist Safety Platform", 105, 28, { align: "center" });
+    doc.text("Last updated: December 10, 2024", 105, 34, { align: "center" });
+    
+    // Content
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    
+    let y = 50;
+    
+    doc.setFontSize(14);
+    doc.text("1. Data Encryption", 20, y);
+    y += 10;
+    doc.setFontSize(10);
+    const encryptionText = "All personal data is encrypted using AES-256-GCM encryption before storage. This military-grade encryption ensures that your data remains secure and unreadable to unauthorized parties.";
+    const splitEncryption = doc.splitTextToSize(encryptionText, 170);
+    doc.text(splitEncryption, 20, y);
+    y += splitEncryption.length * 5 + 10;
+    
+    doc.setFontSize(14);
+    doc.text("2. Data Collection", 20, y);
+    y += 10;
+    doc.setFontSize(10);
+    doc.text("We collect the following information:", 20, y);
+    y += 7;
+    doc.text("• Personal identification (name, passport/ID number)", 25, y);
+    y += 6;
+    doc.text("• Travel information (dates, destinations, accommodation)", 25, y);
+    y += 6;
+    doc.text("• Emergency contact details", 25, y);
+    y += 6;
+    doc.text("• Location data (for geofencing safety features)", 25, y);
+    y += 15;
+    
+    doc.setFontSize(14);
+    doc.text("3. Data Usage", 20, y);
+    y += 10;
+    doc.setFontSize(10);
+    doc.text("Your data is used exclusively for:", 20, y);
+    y += 7;
+    doc.text("• Identity verification and digital ID issuance", 25, y);
+    y += 6;
+    doc.text("• Safety monitoring and geofence alerts", 25, y);
+    y += 6;
+    doc.text("• Emergency response coordination", 25, y);
+    y += 6;
+    doc.text("• Communication with emergency contacts when necessary", 25, y);
+    y += 15;
+    
+    doc.setFontSize(14);
+    doc.text("4. Your Rights", 20, y);
+    y += 10;
+    doc.setFontSize(10);
+    const rightsText = "You have the right to access, modify, or delete your personal data at any time. You can revoke your Digital ID through the dashboard, which will remove all associated data from our systems. We comply with GDPR and other applicable data protection regulations.";
+    const splitRights = doc.splitTextToSize(rightsText, 170);
+    doc.text(splitRights, 20, y);
+    y += splitRights.length * 5 + 15;
+    
+    doc.setFontSize(14);
+    doc.text("5. Contact Us", 20, y);
+    y += 10;
+    doc.setFontSize(10);
+    doc.text("For privacy inquiries: privacy@tourist-safety.io", 20, y);
+    
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(128, 128, 128);
+    doc.text("© 2024 Smart Tourist Safety. All rights reserved.", 105, 285, { align: "center" });
+    
+    doc.save("privacy-policy.pdf");
+    
     toast({
-      title: "Download Started",
-      description: "Privacy Policy PDF is being generated...",
+      title: "Download Complete",
+      description: "Privacy Policy PDF has been downloaded.",
     });
   };
 
