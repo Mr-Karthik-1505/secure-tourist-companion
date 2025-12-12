@@ -7,6 +7,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { BackendStatus } from "@/components/BackendStatus";
 
 const navItems = [
   { icon: User, label: "My Digital ID", path: "/my-id" },
@@ -40,6 +41,11 @@ export function Header() {
             </p>
           </div>
         </Link>
+
+        {/* Backend Status */}
+        <div className="hidden md:flex">
+          <BackendStatus />
+        </div>
 
         {/* Navigation Icons */}
         <nav className="flex items-center gap-1 sm:gap-2" role="navigation" aria-label="Main navigation">
