@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useKYC } from "@/hooks/useKYC";
 
 const steps = [
   { id: 1, title: "Personal Info", icon: User },
@@ -63,11 +64,13 @@ interface FormData {
 export default function Register() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { loading: apiLoading, upload } = useKYC();
   const [currentStep, setCurrentStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showBlockchainModal, setShowBlockchainModal] = useState(false);
   const [generatedId, setGeneratedId] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadResult, setUploadResult] = useState<{ cid: string; txHash: string } | null>(null);
 
   const [formData, setFormData] = useState<FormData>({
     name: "",
@@ -142,15 +145,34 @@ export default function Register() {
     }
   };
 
-  const handleGenerateId = () => {
+  const handleGenerateId = async () => {
     if (!validateStep(3)) return;
     setShowBlockchainModal(true);
     setIsProcessing(true);
 
-    // Simulate blockchain transaction
+    // Generate mock wallet address for demo
+    const mockUserAddress = "0x" + Math.random().toString(16).slice(2, 42).padEnd(40, "0");
+
+    // Try real API upload
+    if (formData.file) {
+      const result = await upload(mockUserAddress, formData.file, "server");
+      
+      if (result) {
+        setUploadResult({ cid: result.cid, txHash: result.txHash });
+        setGeneratedId(result.txHash.slice(0, 18));
+        setIsProcessing(false);
+        return;
+      }
+    }
+
+    // Mock fallback if API unavailable
     setTimeout(() => {
       setIsProcessing(false);
       setGeneratedId("0x" + Math.random().toString(16).slice(2, 18));
+      setUploadResult({
+        cid: "Qm" + Math.random().toString(36).slice(2, 12),
+        txHash: "0x" + Math.random().toString(16).slice(2, 66),
+      });
     }, 3000);
   };
 

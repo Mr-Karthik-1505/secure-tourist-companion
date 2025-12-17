@@ -27,9 +27,11 @@ import {
   FileText,
   User,
   ExternalLink,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useKYC } from "@/hooks/useKYC";
 import usersData from "@/data/users.json";
 
 interface KYCUser {
@@ -48,6 +50,7 @@ interface KYCUser {
 
 export default function KYCDashboard() {
   const { toast } = useToast();
+  const { loading: apiLoading, upload, revoke } = useKYC();
   const [users] = useState<KYCUser[]>(usersData as KYCUser[]);
   const [selectedUser, setSelectedUser] = useState<KYCUser | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -85,16 +88,27 @@ export default function KYCDashboard() {
     });
   };
 
-  const handleRevoke = () => {
-    toast({
-      title: "KYC Revoked",
-      description: `${selectedUser?.name}'s KYC has been revoked.`,
-    });
-    setShowRevokeModal(false);
-    setSelectedUser(null);
+  const handleRevoke = async () => {
+    if (!selectedUser) return;
+    
+    // Try API first, fall back to mock if backend unavailable
+    const result = await revoke(selectedUser.address, "Manual revocation");
+    
+    if (result) {
+      setShowRevokeModal(false);
+      setSelectedUser(null);
+    } else {
+      // Mock fallback for demo
+      toast({
+        title: "KYC Revoked (Mock)",
+        description: `${selectedUser.name}'s KYC has been revoked locally.`,
+      });
+      setShowRevokeModal(false);
+      setSelectedUser(null);
+    }
   };
 
-  const handleAddKYC = () => {
+  const handleAddKYC = async () => {
     if (!newKYC.address.startsWith("0x") || newKYC.address.length !== 42) {
       toast({
         title: "Invalid Address",
@@ -104,12 +118,34 @@ export default function KYCDashboard() {
       return;
     }
 
-    toast({
-      title: "KYC Added",
-      description: "New KYC entry has been created.",
-    });
-    setShowAddModal(false);
-    setNewKYC({ address: "", encrypt: true, file: null });
+    if (!newKYC.file) {
+      toast({
+        title: "No File",
+        description: "Please upload a KYC document.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Try API first, fall back to mock if backend unavailable
+    const result = await upload(
+      newKYC.address,
+      newKYC.file,
+      newKYC.encrypt ? "client" : "server"
+    );
+
+    if (result) {
+      setShowAddModal(false);
+      setNewKYC({ address: "", encrypt: true, file: null });
+    } else {
+      // Mock fallback for demo
+      toast({
+        title: "KYC Added (Mock)",
+        description: "New KYC entry has been created locally.",
+      });
+      setShowAddModal(false);
+      setNewKYC({ address: "", encrypt: true, file: null });
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -405,12 +441,16 @@ export default function KYCDashboard() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddModal(false)}>
+            <Button variant="outline" onClick={() => setShowAddModal(false)} disabled={apiLoading}>
               Cancel
             </Button>
-            <Button onClick={handleAddKYC}>
-              <Shield className="w-4 h-4 mr-2" />
-              Sign & Upload
+            <Button onClick={handleAddKYC} disabled={apiLoading}>
+              {apiLoading ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Shield className="w-4 h-4 mr-2" />
+              )}
+              {apiLoading ? "Uploading..." : "Sign & Upload"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -442,11 +482,14 @@ export default function KYCDashboard() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRevokeModal(false)}>
+            <Button variant="outline" onClick={() => setShowRevokeModal(false)} disabled={apiLoading}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleRevoke}>
-              Confirm Revoke
+            <Button variant="destructive" onClick={handleRevoke} disabled={apiLoading}>
+              {apiLoading ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : null}
+              {apiLoading ? "Revoking..." : "Confirm Revoke"}
             </Button>
           </DialogFooter>
         </DialogContent>
