@@ -30,6 +30,9 @@ const App = () => (
           <Route path="/register" element={<Register />} />
           <Route path="/my-id" element={<MyId />} />
           <Route path="/geofence" element={<Geofence />} />
+          <Route path="/geofence/create" element={<Geofence />} />
+          <Route path="/geofence/edit/:fenceId" element={<Geofence />} />
+          <Route path="/geofence/history/:fenceId" element={<Geofence />} />
           <Route path="/kyc-dashboard" element={<KYCDashboard />} />
           <Route path="/alerts" element={<Alerts />} />
           <Route path="/alerts/:id" element={<AlertDetail />} />
