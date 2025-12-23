@@ -1,0 +1,233 @@
+[
+  {
+    "id": "aud_001",
+    "timestamp": "2024-12-10T14:30:00Z",
+    "action": "INCIDENT_CREATED",
+    "category": "incident",
+    "actor": {
+      "id": "sys_auto",
+      "type": "system",
+      "name": "Automated Alert System"
+    },
+    "target": {
+      "id": "inc_001",
+      "type": "incident",
+      "name": "Medical Emergency - Heat Stroke"
+    },
+    "details": {
+      "severity": "high",
+      "location": "Grand Palace Area",
+      "affectedUser": "usr_004"
+    },
+    "ipAddress": "system",
+    "userAgent": "AutoAlert/1.0"
+  },
+  {
+    "id": "aud_002",
+    "timestamp": "2024-12-10T11:20:00Z",
+    "action": "INCIDENT_ASSIGNED",
+    "category": "incident",
+    "actor": {
+      "id": "auth_001",
+      "type": "authority",
+      "name": "Officer Somchai"
+    },
+    "target": {
+      "id": "inc_002",
+      "type": "incident",
+      "name": "Lost Passport Report"
+    },
+    "details": {
+      "previousStatus": "reported",
+      "newStatus": "assigned",
+      "assignedTo": "resp_001"
+    },
+    "ipAddress": "192.168.1.45",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0)"
+  },
+  {
+    "id": "aud_003",
+    "timestamp": "2024-12-10T09:45:00Z",
+    "action": "GEOFENCE_BREACH",
+    "category": "geofence",
+    "actor": {
+      "id": "usr_003",
+      "type": "tourist",
+      "name": "Emma Thompson"
+    },
+    "target": {
+      "id": "geo_003",
+      "type": "geofence",
+      "name": "Restricted Military Zone"
+    },
+    "details": {
+      "breachType": "entry",
+      "coordinates": { "lat": 13.7234, "lng": 100.4567 },
+      "autoAlertSent": true
+    },
+    "ipAddress": "mobile",
+    "userAgent": "TouristSafety/2.1 iOS"
+  },
+  {
+    "id": "aud_004",
+    "timestamp": "2024-12-10T08:00:00Z",
+    "action": "KYC_UPLOADED",
+    "category": "kyc",
+    "actor": {
+      "id": "ver_001",
+      "type": "verifier",
+      "name": "Immigration Officer Prasit"
+    },
+    "target": {
+      "id": "usr_005",
+      "type": "user",
+      "name": "Carlos Rodriguez"
+    },
+    "details": {
+      "documentType": "passport",
+      "ipfsCID": "QmB1f2ZqPuNtQ7wO3aI8vX0mS2tE5xH7yJ9lN1oR3uV5wT",
+      "dataHash": "0xce1h0i9j8k7l6m5n4o3p2q1r0s9t8u7v6w5x4y3z2a1b0c9",
+      "encryptionUsed": "AES-256-GCM"
+    },
+    "ipAddress": "192.168.1.100",
+    "userAgent": "Mozilla/5.0 (Macintosh)"
+  },
+  {
+    "id": "aud_005",
+    "timestamp": "2024-12-09T22:30:00Z",
+    "action": "INCIDENT_RESOLVED",
+    "category": "incident",
+    "actor": {
+      "id": "auth_002",
+      "type": "authority",
+      "name": "Tourist Police Unit"
+    },
+    "target": {
+      "id": "inc_004",
+      "type": "incident",
+      "name": "Scam Report - Taxi Overcharge"
+    },
+    "details": {
+      "resolution": "Refund negotiated successfully",
+      "responseTime": "2h 30m",
+      "satisfactionScore": 4.5
+    },
+    "ipAddress": "192.168.2.50",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0)"
+  },
+  {
+    "id": "aud_006",
+    "timestamp": "2024-12-09T16:00:00Z",
+    "action": "GEOFENCE_MODIFIED",
+    "category": "geofence",
+    "actor": {
+      "id": "admin_001",
+      "type": "admin",
+      "name": "System Administrator"
+    },
+    "target": {
+      "id": "geo_005",
+      "type": "geofence",
+      "name": "Sukhumvit Entertainment"
+    },
+    "details": {
+      "changes": ["Updated notification contacts", "Enabled exit alerts"],
+      "previousVersion": "1.2",
+      "newVersion": "1.3"
+    },
+    "ipAddress": "192.168.1.1",
+    "userAgent": "Mozilla/5.0 (Macintosh)"
+  },
+  {
+    "id": "aud_007",
+    "timestamp": "2024-12-09T14:30:00Z",
+    "action": "KYC_REVOKED",
+    "category": "kyc",
+    "actor": {
+      "id": "ver_002",
+      "type": "verifier",
+      "name": "Immigration Officer Lek"
+    },
+    "target": {
+      "id": "usr_002",
+      "type": "user",
+      "name": "Michael Chen"
+    },
+    "details": {
+      "reason": "Document expired - awaiting renewal",
+      "previousStatus": "verified",
+      "newStatus": "pending"
+    },
+    "ipAddress": "192.168.1.101",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0)"
+  },
+  {
+    "id": "aud_008",
+    "timestamp": "2024-12-09T10:15:00Z",
+    "action": "DIGITAL_ID_CREATED",
+    "category": "identity",
+    "actor": {
+      "id": "usr_005",
+      "type": "tourist",
+      "name": "Carlos Rodriguez"
+    },
+    "target": {
+      "id": "usr_005",
+      "type": "user",
+      "name": "Carlos Rodriguez"
+    },
+    "details": {
+      "walletAddress": "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
+      "blockchainTx": "0xabc123...",
+      "ipfsAnchor": "QmB1f2ZqPuNtQ7wO3aI8vX0mS2tE5xH7yJ9lN1oR3uV5wT"
+    },
+    "ipAddress": "mobile",
+    "userAgent": "TouristSafety/2.1 Android"
+  },
+  {
+    "id": "aud_009",
+    "timestamp": "2024-12-08T18:45:00Z",
+    "action": "GEOFENCE_CREATED",
+    "category": "geofence",
+    "actor": {
+      "id": "auth_003",
+      "type": "authority",
+      "name": "Tourism Safety Board"
+    },
+    "target": {
+      "id": "geo_005",
+      "type": "geofence",
+      "name": "Sukhumvit Entertainment"
+    },
+    "details": {
+      "type": "monitored_zone",
+      "vertices": 4,
+      "autoNotify": true
+    },
+    "ipAddress": "192.168.3.25",
+    "userAgent": "Mozilla/5.0 (Macintosh)"
+  },
+  {
+    "id": "aud_010",
+    "timestamp": "2024-12-08T12:00:00Z",
+    "action": "SYSTEM_CONFIG_CHANGED",
+    "category": "system",
+    "actor": {
+      "id": "admin_001",
+      "type": "admin",
+      "name": "System Administrator"
+    },
+    "target": {
+      "id": "config_alerts",
+      "type": "config",
+      "name": "Alert Threshold Settings"
+    },
+    "details": {
+      "setting": "breach_severity_threshold",
+      "previousValue": "medium",
+      "newValue": "low"
+    },
+    "ipAddress": "192.168.1.1",
+    "userAgent": "Mozilla/5.0 (Macintosh)"
+  }
+]

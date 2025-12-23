@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { User, MapPin, Shield, Bell } from "lucide-react";
+import { User, MapPin, Shield, Bell, Radio, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -8,17 +8,24 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { BackendStatus } from "@/components/BackendStatus";
+import { RoleSwitcher } from "@/components/RoleSwitcher";
+import { useRole } from "@/contexts/RoleContext";
 
 const navItems = [
-  { icon: User, label: "My Digital ID", path: "/my-id" },
-  { icon: MapPin, label: "Geo-Fence", path: "/geofence" },
-  { icon: Shield, label: "KYC Dashboard", path: "/kyc-dashboard" },
-  { icon: Bell, label: "Alerts", path: "/alerts", badge: 3 },
+  { icon: User, label: "My Digital ID", path: "/my-id", permission: "canViewDigitalId" as const },
+  { icon: MapPin, label: "Geo-Fence", path: "/geofence", permission: "canManageGeofence" as const },
+  { icon: Shield, label: "KYC Dashboard", path: "/kyc-dashboard", permission: "canUploadKyc" as const },
+  { icon: Bell, label: "Alerts", path: "/alerts", badge: 3, permission: "canReceiveAlerts" as const },
+  { icon: Radio, label: "Control Room", path: "/control-room", permission: "canAccessControlRoom" as const },
+  { icon: FileText, label: "Audit Log", path: "/audit-log", permission: "canViewAuditLogs" as const },
 ];
 
 export function Header() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { hasPermission } = useRole();
+
+  const visibleNavItems = navItems.filter(item => hasPermission(item.permission));
 
   return (
     <header className="fixed top-0 left-0 right-0 h-[72px] bg-card/95 backdrop-blur-md border-b border-border z-50">
@@ -42,14 +49,15 @@ export function Header() {
           </div>
         </Link>
 
-        {/* Backend Status */}
-        <div className="hidden md:flex">
+        {/* Backend Status & Role Switcher */}
+        <div className="hidden md:flex items-center gap-4">
           <BackendStatus />
+          <RoleSwitcher />
         </div>
 
         {/* Navigation Icons */}
         <nav className="flex items-center gap-1 sm:gap-2" role="navigation" aria-label="Main navigation">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const isActive = location.pathname === item.path;
             const Icon = item.icon;
 
