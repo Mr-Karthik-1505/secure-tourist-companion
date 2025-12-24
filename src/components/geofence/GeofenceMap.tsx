@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, memo, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -8,9 +8,6 @@ import {
   Crosshair,
   Layers,
   Pencil,
-  MapPin,
-  AlertTriangle,
-  Clock,
 } from "lucide-react";
 
 interface Vertex {
@@ -42,6 +39,15 @@ interface GeofenceMapProps {
   className?: string;
 }
 
+// Severity configuration for enterprise look
+const severityConfig = {
+  safe_zone: { border: "hsl(156, 82%, 24%)", fill: "hsla(156, 82%, 24%, 0.06)" },
+  monitored: { border: "hsl(186, 100%, 35%)", fill: "hsla(186, 100%, 35%, 0.06)" },
+  restricted_zone: { border: "hsl(8, 72%, 59%)", fill: "hsla(8, 72%, 59%, 0.06)" },
+  breached: { border: "hsl(8, 72%, 59%)", fill: "hsla(8, 72%, 59%, 0.12)" },
+  disabled: { border: "hsl(220, 9%, 70%)", fill: "transparent" },
+} as const;
+
 const mapControlButtons = [
   { icon: Plus, label: "Zoom In", action: "zoomIn" },
   { icon: Minus, label: "Zoom Out", action: "zoomOut" },
@@ -49,6 +55,84 @@ const mapControlButtons = [
   { icon: Layers, label: "Toggle Layers", action: "layers" },
   { icon: Pencil, label: "Draw Fence", action: "draw" },
 ] as const;
+
+// Memoized fence zone component
+const FenceZone = memo(function FenceZone({
+  fence,
+  position,
+  isSelected,
+  isFocused,
+  isBreached,
+  onClick,
+  onFocus,
+}: {
+  fence: Geofence;
+  position: { top: string; left: string; width: string; height: string };
+  isSelected: boolean;
+  isFocused: boolean;
+  isBreached: boolean;
+  onClick: () => void;
+  onFocus: () => void;
+}) {
+  const getConfig = () => {
+    if (isBreached) return severityConfig.breached;
+    if (!fence.enabled) return severityConfig.disabled;
+    if (fence.type === "restricted_zone") return severityConfig.restricted_zone;
+    if (fence.type === "safe_zone") return severityConfig.safe_zone;
+    return severityConfig.monitored;
+  };
+
+  const config = getConfig();
+  const status = isBreached ? "breached" : !fence.enabled ? "disabled" : "active";
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          className={cn(
+            "absolute rounded-lg transition-all duration-300",
+            "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
+            !fence.enabled && "border-dashed opacity-60",
+            isBreached && "animate-pulse",
+            isSelected && "ring-2 ring-primary ring-offset-2",
+            isFocused && "ring-2 ring-ring ring-offset-1"
+          )}
+          style={{
+            top: position.top,
+            left: position.left,
+            width: position.width,
+            height: position.height,
+            border: `2px solid ${config.border}`,
+            backgroundColor: config.fill,
+          }}
+          onClick={onClick}
+          onFocus={onFocus}
+          aria-label={`${fence.name}: ${fence.description}. Status: ${status}`}
+          aria-selected={isSelected}
+        >
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center px-2">
+              <p className="text-xs font-medium text-foreground truncate max-w-[100px]">
+                {fence.name}
+              </p>
+              {isBreached && (
+                <span className="text-[10px] text-destructive font-semibold uppercase">
+                  BREACH
+                </span>
+              )}
+            </div>
+          </div>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="bg-card border border-border shadow-lg">
+        <div className="text-xs">
+          <p className="font-medium text-foreground">{fence.name}</p>
+          <p className="text-muted-foreground capitalize">{status}</p>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+});
 
 export function GeofenceMap({
   geofences,
@@ -65,12 +149,24 @@ export function GeofenceMap({
   const [focusedFenceIndex, setFocusedFenceIndex] = useState(-1);
   const mapRef = useRef<HTMLDivElement>(null);
 
-  // Handle keyboard navigation
+  // Fence positions
+  const fencePositions = useMemo(() => {
+    const positions = [
+      { top: "10%", left: "10%", width: "25%", height: "28%" },
+      { top: "48%", left: "55%", width: "30%", height: "26%" },
+      { top: "38%", left: "5%", width: "22%", height: "24%" },
+      { top: "8%", left: "58%", width: "28%", height: "26%" },
+      { top: "55%", left: "25%", width: "24%", height: "28%" },
+    ];
+    return positions;
+  }, []);
+
+  // Keyboard navigation
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === "Tab" && !e.shiftKey && mapRef.current?.contains(document.activeElement)) {
-        // Allow default tab behavior
-      } else if (e.key === "Enter" && focusedFenceIndex >= 0) {
+      if (!mapRef.current?.contains(document.activeElement)) return;
+      
+      if (e.key === "Enter" && focusedFenceIndex >= 0) {
         const fence = geofences[focusedFenceIndex];
         if (fence) onSelectFence(fence);
       } else if (e.key === "Escape") {
@@ -91,182 +187,109 @@ export function GeofenceMap({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
 
-  const handleControlAction = (action: string) => {
+  const handleControlAction = useCallback((action: string) => {
     switch (action) {
       case "zoomIn":
-        setZoom((prev) => Math.min(prev + 0.2, 2));
+        setZoom((prev) => Math.min(prev + 0.25, 2));
         break;
       case "zoomOut":
-        setZoom((prev) => Math.max(prev - 0.2, 0.5));
+        setZoom((prev) => Math.max(prev - 0.25, 0.5));
         break;
       case "center":
         setZoom(1);
         break;
       case "layers":
-        setShowLayers(!showLayers);
-        setMapStyle((prev) => (prev === "street" ? "satellite" : "street"));
+        setShowLayers((prev) => !prev);
         break;
       case "draw":
         onStartDraw?.("polygon");
         break;
     }
-  };
-
-  // Calculate position for fence polygon on the map visualization
-  const getFencePosition = (fence: Geofence, index: number) => {
-    const positions = [
-      { top: "12%", left: "15%", width: "28%", height: "32%" },
-      { top: "55%", left: "50%", width: "32%", height: "28%" },
-      { top: "42%", left: "8%", width: "22%", height: "24%" },
-      { top: "15%", left: "55%", width: "28%", height: "28%" },
-      { top: "50%", left: "28%", width: "24%", height: "30%" },
-    ];
-    return positions[index % positions.length];
-  };
-
-  const getFenceStatus = (fence: Geofence) => {
-    if (breachedFenceId === fence.id) return "breached";
-    if (!fence.enabled) return "inactive";
-    return fence.status || "active";
-  };
-
-  const getStatusStyles = (status: string, type: string) => {
-    if (status === "breached") {
-      return "border-destructive bg-destructive/20 animate-pulse";
-    }
-    if (status === "inactive") {
-      return "border-muted-foreground/30 bg-muted/20 opacity-50";
-    }
-    if (status === "scheduled") {
-      return "border-warning bg-warning/10";
-    }
-    // Active states by zone type
-    if (type === "restricted_zone") {
-      return "border-destructive bg-destructive/10 hover:bg-destructive/20";
-    }
-    if (type === "safe_zone") {
-      return "border-primary bg-primary/10 hover:bg-primary/20";
-    }
-    return "border-accent bg-accent/10 hover:bg-accent/20";
-  };
+  }, [onStartDraw]);
 
   return (
     <div
       ref={mapRef}
       className={cn(
-        "relative rounded-xl overflow-hidden bg-gradient-to-br transition-all duration-500",
-        mapStyle === "street"
-          ? "from-accent/5 via-background to-primary/5"
-          : "from-muted via-muted/80 to-muted",
+        "relative rounded-xl overflow-hidden border border-border",
         className
       )}
       tabIndex={0}
       role="application"
       aria-label="Geo-fencing map area. Use arrow keys to navigate fences, Enter to select."
     >
-      {/* Map Grid Pattern */}
+      {/* Neutral Grayscale Map Background */}
       <div
-        className="absolute inset-0 transition-opacity duration-500"
-        style={{ opacity: mapStyle === "street" ? 0.25 : 0.1, transform: `scale(${zoom})` }}
+        className="absolute inset-0 transition-transform duration-300 ease-out"
+        style={{ transform: `scale(${zoom})`, transformOrigin: "center center" }}
       >
-        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+        {/* Base layer */}
+        <div className={cn(
+          "absolute inset-0",
+          mapStyle === "street" 
+            ? "bg-gradient-to-br from-[hsl(0,0%,97%)] via-[hsl(0,0%,95%)] to-[hsl(200,10%,93%)]"
+            : "bg-gradient-to-br from-[hsl(0,0%,30%)] via-[hsl(0,0%,25%)] to-[hsl(200,10%,20%)]"
+        )} />
+
+        {/* Road grid */}
+        <svg
+          className={cn(
+            "absolute inset-0 w-full h-full",
+            mapStyle === "street" ? "opacity-30" : "opacity-15"
+          )}
+          xmlns="http://www.w3.org/2000/svg"
+        >
           <defs>
-            <pattern id="mapGrid" width="60" height="60" patternUnits="userSpaceOnUse">
+            <pattern id="geoRoadGrid" width="80" height="80" patternUnits="userSpaceOnUse">
               <path
-                d="M 60 0 L 0 0 0 60"
+                d="M 80 0 L 0 0 0 80"
                 fill="none"
-                stroke="currentColor"
-                strokeWidth="0.5"
-                className="text-primary/50"
+                stroke={mapStyle === "street" ? "hsl(0, 0%, 80%)" : "hsl(0, 0%, 50%)"}
+                strokeWidth="1"
               />
             </pattern>
-            <pattern id="mapGridSmall" width="15" height="15" patternUnits="userSpaceOnUse">
+            <pattern id="geoMinorGrid" width="20" height="20" patternUnits="userSpaceOnUse">
               <path
-                d="M 15 0 L 0 0 0 15"
+                d="M 20 0 L 0 0 0 20"
                 fill="none"
-                stroke="currentColor"
-                strokeWidth="0.25"
-                className="text-muted-foreground/30"
+                stroke={mapStyle === "street" ? "hsl(0, 0%, 88%)" : "hsl(0, 0%, 40%)"}
+                strokeWidth="0.5"
               />
             </pattern>
           </defs>
-          <rect width="100%" height="100%" fill="url(#mapGridSmall)" />
-          <rect width="100%" height="100%" fill="url(#mapGrid)" />
+          <rect width="100%" height="100%" fill="url(#geoMinorGrid)" />
+          <rect width="100%" height="100%" fill="url(#geoRoadGrid)" />
         </svg>
-      </div>
 
-      {/* Draw Mode Overlay */}
-      {isDrawMode && (
-        <div className="absolute inset-0 bg-primary/5 z-10 flex items-center justify-center">
-          <div className="bg-card px-6 py-4 rounded-xl shadow-lg border border-primary">
-            <p className="text-foreground font-medium">Click points to draw fence polygon</p>
-            <p className="text-muted-foreground text-sm">Double-click to finish</p>
+        {/* Water feature */}
+        <div className={cn(
+          "absolute top-[60%] right-[3%] w-[18%] h-[28%] rounded-lg opacity-40",
+          mapStyle === "street" ? "bg-[hsl(200,15%,85%)]" : "bg-[hsl(200,20%,40%)]"
+        )} />
+
+        {/* Draw Mode Overlay */}
+        {isDrawMode && (
+          <div className="absolute inset-0 bg-primary/5 z-10 flex items-center justify-center">
+            <div className="bg-card px-6 py-4 rounded-xl shadow-lg border border-primary">
+              <p className="text-foreground font-medium">Click points to draw fence polygon</p>
+              <p className="text-muted-foreground text-sm">Double-click to finish</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Fence Polygons */}
-      <div
-        className="absolute inset-0 transition-transform duration-300"
-        style={{ transform: `scale(${zoom})` }}
-      >
-        {geofences.map((fence, index) => {
-          const pos = getFencePosition(fence, index);
-          const status = getFenceStatus(fence);
-          const isSelected = selectedFenceId === fence.id;
-          const isFocused = focusedFenceIndex === index;
-
-          return (
-            <button
-              key={fence.id}
-              className={cn(
-                "absolute rounded-xl border-2 transition-all duration-300 cursor-pointer focus-ring",
-                getStatusStyles(status, fence.type),
-                isSelected && "ring-2 ring-primary ring-offset-2 border-dashed",
-                isFocused && "ring-2 ring-ring ring-offset-1"
-              )}
-              style={{
-                top: pos.top,
-                left: pos.left,
-                width: pos.width,
-                height: pos.height,
-              }}
-              onClick={() => onSelectFence(fence)}
-              onFocus={() => setFocusedFenceIndex(index)}
-              aria-label={`${fence.name}: ${fence.description}. Status: ${status}`}
-              aria-selected={isSelected}
-            >
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center p-2">
-                  {status === "breached" ? (
-                    <AlertTriangle className="w-6 h-6 mx-auto mb-1 text-destructive animate-bounce" />
-                  ) : status === "scheduled" ? (
-                    <Clock className="w-6 h-6 mx-auto mb-1 text-warning" />
-                  ) : (
-                    <MapPin
-                      className={cn(
-                        "w-6 h-6 mx-auto mb-1",
-                        fence.type === "restricted_zone"
-                          ? "text-destructive"
-                          : fence.type === "safe_zone"
-                          ? "text-primary"
-                          : "text-accent"
-                      )}
-                    />
-                  )}
-                  <p className="text-xs font-medium text-foreground truncate max-w-[120px]">
-                    {fence.name}
-                  </p>
-                  {status === "breached" && (
-                    <span className="text-[10px] text-destructive font-semibold uppercase">
-                      BREACH
-                    </span>
-                  )}
-                </div>
-              </div>
-            </button>
-          );
-        })}
+        {/* Fence Zones */}
+        {geofences.map((fence, index) => (
+          <FenceZone
+            key={fence.id}
+            fence={fence}
+            position={fencePositions[index % fencePositions.length]}
+            isSelected={selectedFenceId === fence.id}
+            isFocused={focusedFenceIndex === index}
+            isBreached={breachedFenceId === fence.id}
+            onClick={() => onSelectFence(fence)}
+            onFocus={() => setFocusedFenceIndex(index)}
+          />
+        ))}
       </div>
 
       {/* Map Controls */}
@@ -275,13 +298,13 @@ export function GeofenceMap({
           <Tooltip key={action}>
             <TooltipTrigger asChild>
               <Button
-                variant="secondary"
+                variant="outline"
                 size="icon"
-                className="w-10 h-10 rounded-full bg-card/90 backdrop-blur-sm shadow-lg hover:bg-card border border-border"
+                className="w-9 h-9 bg-card border-border hover:bg-muted shadow-sm"
                 onClick={() => handleControlAction(action)}
                 aria-label={label}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="w-4 h-4 text-foreground" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="left">{label}</TooltipContent>
@@ -291,13 +314,13 @@ export function GeofenceMap({
 
       {/* Layers Panel */}
       {showLayers && (
-        <div className="absolute top-4 right-16 bg-card rounded-lg shadow-lg p-3 z-20 animate-fade-in-up">
-          <p className="text-xs font-medium text-foreground mb-2">Map Style</p>
-          <div className="space-y-1">
+        <div className="absolute top-4 right-16 bg-card border border-border rounded-lg shadow-lg p-4 z-30 min-w-[140px]">
+          <p className="text-xs font-medium text-foreground mb-3">Map Style</p>
+          <div className="space-y-2">
             <button
               className={cn(
-                "w-full text-left px-2 py-1 rounded text-sm",
-                mapStyle === "street" && "bg-primary/10 text-primary"
+                "w-full text-left px-2 py-1.5 rounded text-sm transition-colors",
+                mapStyle === "street" ? "bg-primary/10 text-primary" : "hover:bg-muted text-foreground"
               )}
               onClick={() => setMapStyle("street")}
             >
@@ -305,8 +328,8 @@ export function GeofenceMap({
             </button>
             <button
               className={cn(
-                "w-full text-left px-2 py-1 rounded text-sm",
-                mapStyle === "satellite" && "bg-primary/10 text-primary"
+                "w-full text-left px-2 py-1.5 rounded text-sm transition-colors",
+                mapStyle === "satellite" ? "bg-primary/10 text-primary" : "hover:bg-muted text-foreground"
               )}
               onClick={() => setMapStyle("satellite")}
             >
@@ -317,36 +340,44 @@ export function GeofenceMap({
       )}
 
       {/* Map Legend */}
-      <div className="absolute bottom-4 left-4 bg-card/95 backdrop-blur-sm rounded-lg shadow-lg p-3 z-20">
-        <p className="text-xs font-semibold text-foreground mb-2">Legend</p>
+      <div className="absolute bottom-4 left-4 bg-card/95 backdrop-blur-sm border border-border rounded-lg p-3 z-20">
+        <p className="text-xs font-medium text-foreground mb-2">Legend</p>
         <div className="space-y-1.5">
           <div className="flex items-center gap-2 text-xs">
-            <div className="w-3 h-3 rounded bg-primary border border-primary" />
+            <div
+              className="w-3 h-3 rounded"
+              style={{ border: `2px solid ${severityConfig.safe_zone.border}`, backgroundColor: severityConfig.safe_zone.fill }}
+            />
             <span className="text-muted-foreground">Safe Zone</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
-            <div className="w-3 h-3 rounded bg-accent border border-accent" />
+            <div
+              className="w-3 h-3 rounded"
+              style={{ border: `2px solid ${severityConfig.monitored.border}`, backgroundColor: severityConfig.monitored.fill }}
+            />
             <span className="text-muted-foreground">Monitored</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
-            <div className="w-3 h-3 rounded bg-destructive border border-destructive" />
+            <div
+              className="w-3 h-3 rounded"
+              style={{ border: `2px solid ${severityConfig.restricted_zone.border}`, backgroundColor: severityConfig.restricted_zone.fill }}
+            />
             <span className="text-muted-foreground">Restricted</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
-            <div className="w-3 h-3 rounded border-2 border-dashed border-primary" />
-            <span className="text-muted-foreground">Selected</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs">
-            <div className="w-3 h-3 rounded bg-destructive/30 border border-destructive animate-pulse" />
-            <span className="text-muted-foreground">Breached</span>
+            <div
+              className="w-3 h-3 rounded border-dashed"
+              style={{ border: `2px dashed ${severityConfig.disabled.border}` }}
+            />
+            <span className="text-muted-foreground">Disabled</span>
           </div>
         </div>
       </div>
 
-      {/* Zoom Level Indicator */}
-      <div className="absolute bottom-4 right-4 bg-card/90 backdrop-blur-sm rounded-lg px-3 py-1 z-20">
+      {/* Zoom Indicator */}
+      <div className="absolute bottom-4 right-4 bg-card/95 backdrop-blur-sm border border-border rounded px-2 py-1 z-20">
         <p className="text-xs text-muted-foreground">
-          Zoom: {Math.round(zoom * 100)}%
+          {Math.round(zoom * 100)}%
         </p>
       </div>
 
