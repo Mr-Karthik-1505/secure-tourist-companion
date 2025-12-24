@@ -88,23 +88,6 @@ export default function AuditLog() {
   
   const auditEntries = auditData as AuditEntry[];
 
-  // Check permissions
-  if (!hasPermission('canViewAuditLogs')) {
-    return (
-      <MainLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Card className="p-8 text-center max-w-md">
-            <Shield className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
-            <p className="text-muted-foreground">
-              Audit Log access is limited to Admin roles only.
-            </p>
-          </Card>
-        </div>
-      </MainLayout>
-    );
-  }
-
   // Filter entries
   const filteredEntries = useMemo(() => {
     return auditEntries.filter(entry => {
@@ -131,6 +114,24 @@ export default function AuditLog() {
       return true;
     });
   }, [auditEntries, searchQuery, categoryFilter, actorFilter]);
+
+
+  // Check permissions - must be after all hooks
+  if (!hasPermission('canViewAuditLogs')) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Card className="p-8 text-center max-w-md">
+            <Shield className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
+            <p className="text-muted-foreground">
+              Audit Log access is limited to Admin roles only.
+            </p>
+          </Card>
+        </div>
+      </MainLayout>
+    );
+  }
 
   const formatAction = (action: string): string => {
     return action.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
