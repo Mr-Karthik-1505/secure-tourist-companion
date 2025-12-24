@@ -1,15 +1,18 @@
-import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { MainLayout } from "@/components/layout";
+import { MapboxMap } from "@/components/map/MapboxMap";
+import { MapTourist, MapGeofence } from "@/components/map/types";
 import {
-  GeofenceMap,
   GeofenceList,
   CreateGeofenceWizard,
   FenceSettingsDrawer,
   FenceHistoryModal,
 } from "@/components/geofence";
 import { useToast } from "@/hooks/use-toast";
+import { useRole } from "@/contexts/RoleContext";
 import geofencesData from "@/data/geofences.json";
+import usersData from "@/data/users.json";
 
 interface Vertex {
   lat: number;
@@ -66,6 +69,7 @@ export default function Geofence() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { hasPermission } = useRole();
   
   const [geofences, setGeofences] = useState<Geofence[]>(
     geofencesData.map((f) => ({ ...f, fenceType: "polygon" as const })) as Geofence[]
@@ -76,7 +80,41 @@ export default function Geofence() {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyFenceId, setHistoryFenceId] = useState<string | null>(null);
   const [breachedFenceId, setBreachedFenceId] = useState<string | null>(null);
-  const [isDrawMode, setIsDrawMode] = useState(false);
+
+  // Convert users data to MapTourist format
+  const tourists: MapTourist[] = useMemo(() => {
+    return usersData.map((user) => ({
+      id: user.id,
+      name: user.name,
+      lat: user.location.lat,
+      lng: user.location.lng,
+      status: user.status as "verified" | "pending" | "alert" | "inactive",
+      riskScore: Math.floor(Math.random() * 100),
+      lastUpdated: user.lastCheckIn,
+      photo: user.photo,
+      country: user.country,
+    }));
+  }, []);
+
+  // Convert geofences to MapGeofence format for the map
+  const mapGeofences: MapGeofence[] = useMemo(() => {
+    return geofences.map((fence) => ({
+      id: fence.id,
+      name: fence.name,
+      description: fence.description,
+      type: fence.fenceType || "polygon",
+      severity: fence.severity || "medium",
+      status: fence.enabled 
+        ? (breachedFenceId === fence.id ? "breached" : "active") 
+        : "inactive",
+      coordinates: fence.vertices.map(v => [v.lng, v.lat] as [number, number]),
+      center: [fence.center.lng, fence.center.lat] as [number, number],
+      radius: fence.radius,
+      color: fence.color,
+      enabled: fence.enabled,
+      fenceType: fence.type,
+    }));
+  }, [geofences, breachedFenceId]);
 
   // Handle route-based modals
   useEffect(() => {
@@ -103,7 +141,6 @@ export default function Geofence() {
   // Breach simulation (demo)
   useEffect(() => {
     const simulateBreach = () => {
-      // Random chance to trigger breach on restricted zone
       const restrictedFences = geofences.filter(
         (f) => f.type === "restricted_zone" && f.enabled
       );
@@ -112,17 +149,15 @@ export default function Geofence() {
         setBreachedFenceId(fence.id);
         
         toast({
-          title: "🚨 Fence Breach Detected",
+          title: "Fence Breach Detected",
           description: `Alert: Unauthorized entry at ${fence.name}`,
           variant: "destructive",
         });
 
-        // Clear breach after 5 seconds
         setTimeout(() => setBreachedFenceId(null), 5000);
       }
     };
 
-    // Simulate breach every 30 seconds (for demo)
     const interval = setInterval(simulateBreach, 30000);
     return () => clearInterval(interval);
   }, [geofences, toast]);
@@ -131,11 +166,10 @@ export default function Geofence() {
 
   const handleSelectFence = useCallback((fence: Geofence) => {
     setSelectedFenceId(fence.id);
-    // Announce selection for screen readers
-    const announcement = document.getElementById("fence-announcement");
-    if (announcement) {
-      announcement.textContent = `Selected ${fence.name}`;
-    }
+  }, []);
+
+  const handleSelectMapFence = useCallback((fence: MapGeofence) => {
+    setSelectedFenceId(fence.id);
   }, []);
 
   const handleToggleFence = useCallback((id: string) => {
@@ -165,7 +199,6 @@ export default function Geofence() {
     const lng = parseFloat(newFenceData.lng);
     const radius = newFenceData.radius ? parseFloat(newFenceData.radius) : 500;
 
-    // Generate vertices for polygon or use center for circle
     const vertices: Vertex[] = newFenceData.fenceType === "circle"
       ? [
           { lat: lat + 0.01, lng: lng - 0.01 },
@@ -209,16 +242,48 @@ export default function Geofence() {
     navigate("/geofence");
     
     toast({
-      title: "✅ Geo-Fence Activated",
+      title: "Geo-Fence Created",
       description: `${newFenceData.name} has been created and is now active.`,
     });
-
-    // Screen reader announcement
-    const announcement = document.getElementById("fence-announcement");
-    if (announcement) {
-      announcement.textContent = `Fence created: ${newFenceData.name}`;
-    }
   }, [navigate, toast]);
+
+  const handleCreateMapFence = useCallback((fenceData: Partial<MapGeofence>) => {
+    if (!hasPermission("canManageGeofence")) return;
+
+    const newGeofence: Geofence = {
+      id: `geo_${Date.now()}`,
+      name: `New Fence ${Date.now()}`,
+      description: "Created via map drawing",
+      type: fenceData.severity === "high" ? "restricted_zone" : "monitored_zone",
+      enabled: true,
+      color: fenceData.severity === "high" ? "#E25B4A" : "#00A3B4",
+      vertices: fenceData.coordinates 
+        ? fenceData.coordinates.map(c => ({ lat: c[1], lng: c[0] }))
+        : [],
+      center: fenceData.center 
+        ? { lat: fenceData.center[1], lng: fenceData.center[0] }
+        : { lat: 13.7563, lng: 100.5018 },
+      autoNotify: true,
+      notifyOnEntry: true,
+      notifyOnExit: true,
+      contacts: [],
+      activeIncidents: 0,
+      totalTourists: 0,
+      fenceType: fenceData.type === "circle" ? "circle" : "polygon",
+      radius: fenceData.radius,
+      severity: fenceData.severity || "medium",
+      status: "active",
+    };
+
+    setGeofences((prev) => [...prev, newGeofence]);
+    setSelectedFenceId(newGeofence.id);
+    setShowSettingsDrawer(true);
+
+    toast({
+      title: "Fence Created",
+      description: "Edit the fence details in the settings panel.",
+    });
+  }, [hasPermission, toast]);
 
   const handleOpenSettings = useCallback((fence: Geofence) => {
     setSelectedFenceId(fence.id);
@@ -244,12 +309,6 @@ export default function Geofence() {
       title: "Settings Saved",
       description: `${updatedFence.name} settings have been updated.`,
     });
-
-    // Screen reader announcement
-    const announcement = document.getElementById("fence-announcement");
-    if (announcement) {
-      announcement.textContent = `Fence updated: ${updatedFence.name}`;
-    }
   }, [navigate, toast]);
 
   const handleDeleteFence = useCallback((id: string) => {
@@ -279,29 +338,6 @@ export default function Geofence() {
     setHistoryFenceId(null);
   }, [navigate]);
 
-  const handleStartDraw = useCallback((type: "circle" | "polygon") => {
-    setIsDrawMode(true);
-    toast({
-      title: "Draw Mode Active",
-      description: `Click on the map to draw a ${type} fence. Press Escape to cancel.`,
-    });
-  }, [toast]);
-
-  // Cancel draw mode on Escape
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isDrawMode) {
-        setIsDrawMode(false);
-        toast({
-          title: "Draw Mode Cancelled",
-          description: "Fence drawing has been cancelled.",
-        });
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isDrawMode, toast]);
-
   const historyFence = geofences.find((f) => f.id === historyFenceId);
 
   return (
@@ -319,21 +355,22 @@ export default function Geofence() {
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-foreground">Geofence Management</h1>
           <p className="text-muted-foreground mt-1">
-            Define, monitor, and manage safety boundaries for tourist zones
+            Real-world GPS-accurate boundaries with drawing tools for authority roles
           </p>
         </div>
 
         {/* Main Layout: 70% Map / 30% Controls */}
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
-          {/* Map Section - 70% */}
+          {/* Real-World Map Section - 70% */}
           <div className="flex-1 lg:w-[70%]">
-            <GeofenceMap
-              geofences={geofences}
+            <MapboxMap
+              tourists={tourists}
+              geofences={mapGeofences}
               selectedFenceId={selectedFenceId}
-              onSelectFence={handleSelectFence}
-              onStartDraw={handleStartDraw}
-              isDrawMode={isDrawMode}
               breachedFenceId={breachedFenceId}
+              onSelectFence={handleSelectMapFence}
+              onCreateFence={handleCreateMapFence}
+              onDeleteFence={handleDeleteFence}
               className="h-[500px] lg:h-[600px]"
             />
           </div>
