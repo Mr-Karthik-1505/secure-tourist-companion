@@ -55,23 +55,6 @@ export default function ControlRoom() {
   const [liveAlerts, setLiveAlerts] = useState<Alert[]>([]);
   const [liveIncidents, setLiveIncidents] = useState<Incident[]>([]);
   const [lastUpdate, setLastUpdate] = useState(new Date());
-  
-  // Check permissions
-  if (!hasPermission('canAccessControlRoom')) {
-    return (
-      <MainLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Card className="p-8 text-center max-w-md">
-            <Shield className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
-            <p className="text-muted-foreground">
-              Control Room access is limited to Authority and Admin roles only.
-            </p>
-          </Card>
-        </div>
-      </MainLayout>
-    );
-  }
 
   // Transform user data to tourist markers with risk scores
   const tourists: TouristMarker[] = (usersData as any[]).map(user => ({
@@ -138,6 +121,23 @@ export default function ControlRoom() {
       description: `Zone ${geofenceId} has been ${action === 'lockdown' ? 'locked down' : 'released'}.`,
     });
   };
+
+  // Check permissions - must be after all hooks
+  if (!hasPermission('canAccessControlRoom')) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Card className="p-8 text-center max-w-md">
+            <Shield className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
+            <p className="text-muted-foreground">
+              Control Room access is limited to Authority and Admin roles only.
+            </p>
+          </Card>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
