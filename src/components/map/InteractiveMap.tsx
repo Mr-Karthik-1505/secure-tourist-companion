@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -14,10 +14,29 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { ZoomIn, ZoomOut, Locate, Layers, X, Phone, MessageSquare, Wallet, Loader2, Check } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import {
+  Plus,
+  Minus,
+  Crosshair,
+  Layers,
+  X,
+  Phone,
+  MessageSquare,
+  Wallet,
+  Loader2,
+  Check,
+  Clock,
+  MapPin,
+  AlertCircle,
+  ExternalLink,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import usersData from "@/data/users.json";
+import { useNavigate } from "react-router-dom";
 
 interface MapPin {
   id: string;
@@ -33,35 +52,93 @@ interface MapPin {
   };
 }
 
-const mapPins: MapPin[] = usersData.slice(0, 3).map((user) => ({
-  id: user.id,
-  name: user.name,
-  status: user.status as MapPin["status"],
-  location: user.location,
-  lastCheckIn: user.lastCheckIn,
-  photo: user.photo,
-  emergencyContact: user.emergencyContact,
-}));
-
-const statusColors = {
-  verified: "bg-success",
-  pending: "bg-warning",
-  alert: "bg-destructive",
-};
-
-const statusLabels = {
-  verified: "Verified",
-  pending: "Pending",
-  alert: "Alert",
-};
+// Professional status configuration
+const statusConfig = {
+  verified: { 
+    color: "hsl(156, 82%, 24%)", 
+    label: "Verified",
+    bgClass: "bg-primary",
+  },
+  pending: { 
+    color: "hsl(38, 92%, 50%)", 
+    label: "Pending",
+    bgClass: "bg-warning",
+  },
+  alert: { 
+    color: "hsl(8, 72%, 59%)", 
+    label: "At Risk",
+    bgClass: "bg-destructive",
+  },
+} as const;
 
 interface InteractiveMapProps {
   onViewId?: (userId: string) => void;
   className?: string;
 }
 
+// Memoized marker component
+const MarkerDot = memo(function MarkerDot({
+  pin,
+  position,
+  isSelected,
+  isFocused,
+  onClick,
+  onKeyDown,
+  tabIndex,
+}: {
+  pin: MapPin;
+  position: { top: string; left: string };
+  isSelected: boolean;
+  isFocused: boolean;
+  onClick: () => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+  tabIndex: number;
+}) {
+  const config = statusConfig[pin.status];
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          role="button"
+          tabIndex={tabIndex}
+          className={cn(
+            "absolute w-3.5 h-3.5 -ml-[7px] -mt-[7px] rounded-full",
+            "border-2 border-card transition-all duration-200",
+            "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
+            "hover:scale-125",
+            isSelected && "ring-2 ring-primary ring-offset-1 scale-125",
+            isFocused && "ring-2 ring-ring ring-offset-1"
+          )}
+          style={{
+            top: position.top,
+            left: position.left,
+            backgroundColor: config.color,
+            boxShadow: isSelected
+              ? `0 0 0 4px ${config.color}20`
+              : "0 1px 3px rgba(0,0,0,0.12)",
+          }}
+          onClick={onClick}
+          onKeyDown={onKeyDown}
+          aria-label={`Tourist: ${pin.name}, Status: ${config.label}`}
+        />
+      </TooltipTrigger>
+      <TooltipContent
+        side="top"
+        className="bg-card border border-border shadow-lg"
+      >
+        <div className="text-xs">
+          <p className="font-medium text-foreground">{pin.name}</p>
+          <p className="text-muted-foreground">Status: {config.label}</p>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+});
+
 export function InteractiveMap({ onViewId, className }: InteractiveMapProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [zoom, setZoom] = useState(1);
   const [selectedPin, setSelectedPin] = useState<MapPin | null>(null);
   const [focusedPinIndex, setFocusedPinIndex] = useState(-1);
@@ -71,12 +148,43 @@ export function InteractiveMap({ onViewId, className }: InteractiveMapProps) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
 
+  // Map data
+  const mapPins: MapPin[] = useMemo(() => 
+    usersData.slice(0, 5).map((user) => ({
+      id: user.id,
+      name: user.name,
+      status: user.status as MapPin["status"],
+      location: user.location,
+      lastCheckIn: user.lastCheckIn,
+      photo: user.photo,
+      emergencyContact: user.emergencyContact,
+    })), []
+  );
+
+  // Calculate positions
+  const pinPositions = useMemo(() => {
+    if (!mapPins.length) return [];
+    
+    const minLat = Math.min(...mapPins.map((p) => p.location.lat));
+    const maxLat = Math.max(...mapPins.map((p) => p.location.lat));
+    const minLng = Math.min(...mapPins.map((p) => p.location.lng));
+    const maxLng = Math.max(...mapPins.map((p) => p.location.lng));
+    
+    const latRange = maxLat - minLat || 1;
+    const lngRange = maxLng - minLng || 1;
+
+    return mapPins.map((pin) => ({
+      top: `${15 + ((maxLat - pin.location.lat) / latRange) * 70}%`,
+      left: `${15 + ((pin.location.lng - minLng) / lngRange) * 70}%`,
+    }));
+  }, [mapPins]);
+
   const handleZoomIn = useCallback(() => {
-    setZoom((z) => Math.min(z + 0.2, 2));
+    setZoom((z) => Math.min(z + 0.25, 2));
   }, []);
 
   const handleZoomOut = useCallback(() => {
-    setZoom((z) => Math.max(z - 0.2, 0.5));
+    setZoom((z) => Math.max(z - 0.25, 0.5));
   }, []);
 
   const handleLocate = useCallback(() => {
@@ -84,11 +192,11 @@ export function InteractiveMap({ onViewId, className }: InteractiveMapProps) {
     setSelectedPin(null);
   }, []);
 
-  const handlePinClick = (pin: MapPin) => {
+  const handlePinClick = useCallback((pin: MapPin) => {
     setSelectedPin(pin);
-  };
+  }, []);
 
-  const handlePinKeyDown = (e: React.KeyboardEvent, index: number) => {
+  const handlePinKeyDown = useCallback((e: React.KeyboardEvent, index: number) => {
     if (e.key === "ArrowRight" || e.key === "ArrowDown") {
       e.preventDefault();
       const nextIndex = (index + 1) % mapPins.length;
@@ -105,7 +213,7 @@ export function InteractiveMap({ onViewId, className }: InteractiveMapProps) {
     } else if (e.key === "Escape") {
       setSelectedPin(null);
     }
-  };
+  }, [mapPins]);
 
   const handleContact = () => {
     setShowContactModal(true);
@@ -136,84 +244,65 @@ export function InteractiveMap({ onViewId, className }: InteractiveMapProps) {
     });
   };
 
-  // Pin positions on the map (percentage-based)
-  const pinPositions = [
-    { top: "35%", left: "40%" },
-    { top: "55%", left: "60%" },
-    { top: "45%", left: "25%" },
-  ];
-
   return (
     <>
-      <Card className={cn("relative overflow-hidden bg-gradient-to-br from-accent/5 to-primary/5", className)}>
-        {/* Map Background */}
+      <Card className={cn("relative overflow-hidden bg-muted/30 border border-border", className)}>
+        {/* Neutral Grayscale Map Background */}
         <div
-          className="absolute inset-0 transition-transform duration-300"
-          style={{ transform: `scale(${zoom})` }}
+          className="absolute inset-0 transition-transform duration-300 ease-out"
+          style={{ transform: `scale(${zoom})`, transformOrigin: "center center" }}
         >
-          {/* Grid pattern for map */}
-          <div className="absolute inset-0 opacity-20">
-            <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-primary" />
-                </pattern>
-              </defs>
-              <rect width="100%" height="100%" fill="url(#grid)" />
-            </svg>
-          </div>
+          {/* Base map layer */}
+          <div className="absolute inset-0 bg-gradient-to-br from-[hsl(0,0%,97%)] via-[hsl(0,0%,95%)] to-[hsl(200,10%,93%)]" />
+          
+          {/* Road grid */}
+          <svg className="absolute inset-0 w-full h-full opacity-30" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="roadGridInteractive" width="80" height="80" patternUnits="userSpaceOnUse">
+                <path d="M 80 0 L 0 0 0 80" fill="none" stroke="hsl(0, 0%, 80%)" strokeWidth="1" />
+              </pattern>
+              <pattern id="minorGridInteractive" width="20" height="20" patternUnits="userSpaceOnUse">
+                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="hsl(0, 0%, 88%)" strokeWidth="0.5" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#minorGridInteractive)" />
+            <rect width="100%" height="100%" fill="url(#roadGridInteractive)" />
+          </svg>
 
-          {/* Simulated map areas */}
-          <div className="absolute top-[20%] left-[30%] w-32 h-24 rounded-lg bg-primary/10 border border-primary/20" />
-          <div className="absolute top-[50%] left-[50%] w-40 h-28 rounded-lg bg-accent/10 border border-accent/20" />
-          <div className="absolute top-[30%] left-[60%] w-28 h-20 rounded-lg bg-success/10 border border-success/20" />
+          {/* Water feature */}
+          <div className="absolute top-[60%] right-[5%] w-[20%] h-[30%] rounded-lg bg-[hsl(200,15%,85%)] opacity-50" />
+          
+          {/* Block features */}
+          <div className="absolute top-[20%] left-[30%] w-[15%] h-[12%] rounded bg-[hsl(0,0%,92%)]" />
+          <div className="absolute top-[65%] left-[15%] w-[12%] h-[10%] rounded bg-[hsl(0,0%,91%)]" />
 
           {/* Map Pins */}
           {mapPins.map((pin, index) => (
-            <Tooltip key={pin.id}>
-              <TooltipTrigger asChild>
-                <button
-                  className={cn(
-                    "absolute w-8 h-8 -ml-4 -mt-4 rounded-full flex items-center justify-center",
-                    "transition-all duration-200 focus-ring cursor-pointer",
-                    "hover:scale-125 focus:scale-125",
-                    statusColors[pin.status],
-                    selectedPin?.id === pin.id && "ring-4 ring-primary/50 scale-125",
-                    "map-pin-pulse"
-                  )}
-                  style={pinPositions[index]}
-                  onClick={() => handlePinClick(pin)}
-                  onKeyDown={(e) => handlePinKeyDown(e, index)}
-                  aria-label={`Tourist: ${pin.name} — status ${statusLabels[pin.status]}`}
-                  tabIndex={focusedPinIndex === index ? 0 : -1}
-                >
-                  <img
-                    src={pin.photo}
-                    alt=""
-                    className="w-6 h-6 rounded-full object-cover border-2 border-card"
-                  />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="font-medium">{pin.name}</p>
-                <p className="text-xs text-muted-foreground">Status: {statusLabels[pin.status]}</p>
-              </TooltipContent>
-            </Tooltip>
+            <MarkerDot
+              key={pin.id}
+              pin={pin}
+              position={pinPositions[index]}
+              isSelected={selectedPin?.id === pin.id}
+              isFocused={focusedPinIndex === index}
+              onClick={() => handlePinClick(pin)}
+              onKeyDown={(e) => handlePinKeyDown(e, index)}
+              tabIndex={focusedPinIndex === index ? 0 : -1}
+            />
           ))}
         </div>
 
         {/* Map Controls */}
-        <div className="absolute top-4 right-4 flex flex-col gap-2">
+        <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="secondary"
-                size="iconSm"
+                variant="outline"
+                size="icon"
+                className="w-9 h-9 bg-card border-border hover:bg-muted shadow-sm"
                 onClick={handleZoomIn}
                 aria-label="Zoom in"
-                className="bg-card shadow-md"
               >
-                <ZoomIn className="w-4 h-4" />
+                <Plus className="w-4 h-4 text-foreground" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="left">Zoom In</TooltipContent>
@@ -222,13 +311,13 @@ export function InteractiveMap({ onViewId, className }: InteractiveMapProps) {
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="secondary"
-                size="iconSm"
+                variant="outline"
+                size="icon"
+                className="w-9 h-9 bg-card border-border hover:bg-muted shadow-sm"
                 onClick={handleZoomOut}
                 aria-label="Zoom out"
-                className="bg-card shadow-md"
               >
-                <ZoomOut className="w-4 h-4" />
+                <Minus className="w-4 h-4 text-foreground" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="left">Zoom Out</TooltipContent>
@@ -237,29 +326,32 @@ export function InteractiveMap({ onViewId, className }: InteractiveMapProps) {
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="secondary"
-                size="iconSm"
+                variant="outline"
+                size="icon"
+                className="w-9 h-9 bg-card border-border hover:bg-muted shadow-sm"
                 onClick={handleLocate}
-                aria-label="Reset location"
-                className="bg-card shadow-md"
+                aria-label="Center view"
               >
-                <Locate className="w-4 h-4" />
+                <Crosshair className="w-4 h-4 text-foreground" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="left">Locate Me</TooltipContent>
+            <TooltipContent side="left">Center View</TooltipContent>
           </Tooltip>
 
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant={showLayers ? "default" : "secondary"}
-                size="iconSm"
+                variant="outline"
+                size="icon"
+                className={cn(
+                  "w-9 h-9 bg-card border-border hover:bg-muted shadow-sm",
+                  showLayers && "bg-muted"
+                )}
                 onClick={() => setShowLayers(!showLayers)}
                 aria-label="Toggle layers"
                 aria-pressed={showLayers}
-                className={cn(!showLayers && "bg-card shadow-md")}
               >
-                <Layers className="w-4 h-4" />
+                <Layers className="w-4 h-4 text-foreground" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="left">Toggle Layers</TooltipContent>
@@ -268,76 +360,146 @@ export function InteractiveMap({ onViewId, className }: InteractiveMapProps) {
 
         {/* Layers Panel */}
         {showLayers && (
-          <div className="absolute top-4 left-4 bg-card rounded-lg shadow-lg p-3 animate-fade-in">
-            <p className="text-xs font-medium text-foreground mb-2">Map Layers</p>
-            <div className="space-y-1">
-              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-                <input type="checkbox" defaultChecked className="rounded" />
+          <div className="absolute top-4 left-4 bg-card border border-border rounded-lg shadow-lg p-4 z-30 min-w-[160px]">
+            <p className="text-xs font-medium text-foreground mb-3">Map Layers</p>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                <input type="checkbox" defaultChecked className="rounded border-border" />
                 Safe Zones
               </label>
-              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-                <input type="checkbox" defaultChecked className="rounded" />
+              <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                <input type="checkbox" defaultChecked className="rounded border-border" />
                 Tourists
               </label>
-              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-                <input type="checkbox" className="rounded" />
+              <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                <input type="checkbox" className="rounded border-border" />
                 Incidents
               </label>
             </div>
           </div>
         )}
 
-        {/* Selected Pin Panel */}
+        {/* Status Legend */}
+        <div className="absolute bottom-4 left-4 bg-card/95 backdrop-blur-sm border border-border rounded-lg p-3 z-20">
+          <p className="text-xs font-medium text-foreground mb-2">Status</p>
+          <div className="space-y-1.5">
+            {Object.entries(statusConfig).map(([key, { color, label }]) => (
+              <div key={key} className="flex items-center gap-2 text-xs">
+                <div
+                  className="w-2.5 h-2.5 rounded-full border-2 border-card"
+                  style={{ backgroundColor: color }}
+                />
+                <span className="text-muted-foreground">{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Zoom Indicator */}
+        <div className="absolute bottom-4 right-4 bg-card/95 backdrop-blur-sm border border-border rounded px-2 py-1 z-20">
+          <p className="text-xs text-muted-foreground">{Math.round(zoom * 100)}%</p>
+        </div>
+
+        {/* Selected Pin Panel - Slide from right */}
         {selectedPin && (
           <div
-            className="absolute bottom-0 left-0 right-0 bg-card border-t border-border p-4 animate-slide-in-right"
+            className="absolute top-0 right-0 h-full w-[320px] bg-card border-l border-border shadow-xl z-40 animate-slide-in"
             role="dialog"
             aria-label={`Details for ${selectedPin.name}`}
           >
-            <div className="flex items-start gap-4">
-              <img
-                src={selectedPin.photo}
-                alt={selectedPin.name}
-                className="w-12 h-12 rounded-full object-cover border-2 border-border"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <h4 className="font-semibold text-foreground truncate">{selectedPin.name}</h4>
-                  <span
-                    className={cn(
-                      "px-2 py-0.5 rounded-full text-xs font-medium",
-                      selectedPin.status === "verified" && "status-verified",
-                      selectedPin.status === "pending" && "status-pending",
-                      selectedPin.status === "alert" && "status-alert"
-                    )}
-                  >
-                    {statusLabels[selectedPin.status]}
-                  </span>
+            <div className="h-full flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-border">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: statusConfig[selectedPin.status].color }}
+                  />
+                  <h3 className="font-semibold text-foreground">{selectedPin.name}</h3>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Last check-in: {formatTime(selectedPin.lastCheckIn)}
-                </p>
-                <div className="flex gap-2 mt-3">
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={() => onViewId?.(selectedPin.id)}
-                  >
-                    View ID
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={handleContact}>
-                    Contact
-                  </Button>
-                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setSelectedPin(null)}
+                  aria-label="Close panel"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
               </div>
-              <Button
-                variant="ghost"
-                size="iconSm"
-                onClick={() => setSelectedPin(null)}
-                aria-label="Close panel"
-              >
-                <X className="w-4 h-4" />
-              </Button>
+
+              {/* Content */}
+              <ScrollArea className="flex-1 p-4">
+                <div className="space-y-4">
+                  <div>
+                    <Badge
+                      variant="outline"
+                      className="text-xs"
+                      style={{
+                        borderColor: statusConfig[selectedPin.status].color,
+                        color: statusConfig[selectedPin.status].color,
+                      }}
+                    >
+                      {statusConfig[selectedPin.status].label}
+                    </Badge>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                      Location
+                    </h4>
+                    <div className="flex items-center gap-2 text-sm text-foreground">
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
+                      <span>
+                        {selectedPin.location.lat.toFixed(4)}, {selectedPin.location.lng.toFixed(4)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                      Last Check-in
+                    </h4>
+                    <div className="flex items-center gap-2 text-sm text-foreground">
+                      <Clock className="w-4 h-4 text-muted-foreground" />
+                      <span>{formatTime(selectedPin.lastCheckIn)}</span>
+                    </div>
+                  </div>
+                </div>
+              </ScrollArea>
+
+              {/* Actions */}
+              <div className="p-4 border-t border-border space-y-2">
+                <Button
+                  className="w-full justify-between"
+                  variant="default"
+                  onClick={() => {
+                    onViewId?.(selectedPin.id);
+                    navigate(`/my-id?user=${selectedPin.id}`);
+                  }}
+                >
+                  View Digital ID
+                  <ExternalLink className="w-4 h-4" />
+                </Button>
+                <Button
+                  className="w-full justify-between"
+                  variant="outline"
+                  onClick={() => navigate(`/audit-log?user=${selectedPin.id}`)}
+                >
+                  View History
+                  <ExternalLink className="w-4 h-4" />
+                </Button>
+                <Button
+                  className="w-full justify-between"
+                  variant="outline"
+                  onClick={handleContact}
+                >
+                  Contact
+                  <Phone className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -359,15 +521,14 @@ export function InteractiveMap({ onViewId, className }: InteractiveMapProps) {
           {selectedPin && (
             <div className="space-y-4">
               <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
-                <img
-                  src={selectedPin.photo}
-                  alt={selectedPin.name}
-                  className="w-12 h-12 rounded-full object-cover"
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: statusConfig[selectedPin.status].color }}
                 />
                 <div>
                   <p className="font-medium text-foreground">{selectedPin.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    Status: {statusLabels[selectedPin.status]}
+                    Status: {statusConfig[selectedPin.status].label}
                   </p>
                 </div>
               </div>
@@ -445,8 +606,8 @@ export function InteractiveMap({ onViewId, className }: InteractiveMapProps) {
                 </div>
               ) : isConnected ? (
                 <div className="text-center">
-                  <div className="w-12 h-12 rounded-full bg-success/20 flex items-center justify-center mx-auto">
-                    <Check className="w-6 h-6 text-success" />
+                  <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center mx-auto">
+                    <Check className="w-6 h-6 text-primary" />
                   </div>
                   <p className="font-medium text-foreground mt-4">Connected!</p>
                   <p className="text-sm text-muted-foreground mt-1">
