@@ -75,7 +75,7 @@ export default function ControlRoom() {
       setLiveAlerts(prev => [alert, ...prev].slice(0, 20));
       if (audioEnabled) {
         // Play alert sound (mock)
-        console.log('[AUDIO] Alert sound played');
+        // Audio alert triggered
       }
       toast({
         title: alert.title,
@@ -111,7 +111,7 @@ export default function ControlRoom() {
     
     if (randomUser && restrictedZone) {
       const result = simulateBreach(randomUser.id, restrictedZone.id);
-      console.log('[SIMULATION] Breach result:', result);
+      // Breach simulation completed
     }
   }, [tourists, geofences]);
 

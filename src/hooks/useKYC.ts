@@ -51,7 +51,7 @@ export function useKYC(): UseKYCReturn {
       }
     } catch (err) {
       const errMsg = 'An error occurred during upload. Please try again.';
-      console.error('[KYC] Upload error:', err);
+      // Error logged server-side only
       setError(errMsg);
       toast({
         title: "Upload Error",
@@ -92,7 +92,7 @@ export function useKYC(): UseKYCReturn {
       }
     } catch (err) {
       const errMsg = 'An error occurred during revocation. Please try again.';
-      console.error('[KYC] Revoke error:', err);
+      // Error logged server-side only
       setError(errMsg);
       toast({
         title: "Revoke Error",
@@ -123,7 +123,7 @@ export function useKYC(): UseKYCReturn {
       }
     } catch (err) {
       const errMsg = 'An error occurred while fetching the record.';
-      console.error('[KYC] Fetch error:', err);
+      // Error logged server-side only
       setError(errMsg);
       return null;
     } finally {
