@@ -76,11 +76,19 @@ export async function apiRequest<T>(
     const data = await response.json();
     
     if (!response.ok) {
+      // Sanitize error responses - never expose raw server details to client
+      const safeMessages: Record<number, string> = {
+        400: 'Invalid request. Please check your input.',
+        401: 'Authentication required.',
+        403: 'You do not have permission for this action.',
+        404: 'The requested resource was not found.',
+        429: 'Too many requests. Please try again later.',
+      };
       return {
         success: false,
-        error: data.error || {
-          code: `HTTP_${response.status}`,
-          message: response.statusText,
+        error: {
+          code: response.status < 500 ? 'REQUEST_ERROR' : 'SERVER_ERROR',
+          message: safeMessages[response.status] || 'An unexpected error occurred. Please try again.',
         },
       };
     }
@@ -100,11 +108,12 @@ export async function apiRequest<T>(
         };
       }
       
+      console.error('[API] Network error:', error.message);
       return {
         success: false,
         error: {
           code: 'NETWORK_ERROR',
-          message: error.message,
+          message: 'Unable to connect to the server. Please check your connection.',
         },
       };
     }

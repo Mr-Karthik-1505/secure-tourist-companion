@@ -40,7 +40,7 @@ export function useKYC(): UseKYCReturn {
         });
         return response.data;
       } else {
-        const errMsg = response.error?.message || 'Upload failed';
+        const errMsg = 'Upload failed. Please try again.';
         setError(errMsg);
         toast({
           title: "Upload Failed",
@@ -50,7 +50,8 @@ export function useKYC(): UseKYCReturn {
         return null;
       }
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : 'Upload failed';
+      const errMsg = 'An error occurred during upload. Please try again.';
+      console.error('[KYC] Upload error:', err);
       setError(errMsg);
       toast({
         title: "Upload Error",
@@ -80,7 +81,7 @@ export function useKYC(): UseKYCReturn {
         });
         return response.data;
       } else {
-        const errMsg = response.error?.message || 'Revoke failed';
+        const errMsg = 'Revoke failed. Please try again.';
         setError(errMsg);
         toast({
           title: "Revoke Failed",
@@ -90,7 +91,8 @@ export function useKYC(): UseKYCReturn {
         return null;
       }
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : 'Revoke failed';
+      const errMsg = 'An error occurred during revocation. Please try again.';
+      console.error('[KYC] Revoke error:', err);
       setError(errMsg);
       toast({
         title: "Revoke Error",
@@ -115,12 +117,13 @@ export function useKYC(): UseKYCReturn {
       if (response.success && response.data) {
         return response.data;
       } else {
-        const errMsg = response.error?.message || 'Fetch failed';
+        const errMsg = 'Failed to fetch record. Please try again.';
         setError(errMsg);
         return null;
       }
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : 'Fetch failed';
+      const errMsg = 'An error occurred while fetching the record.';
+      console.error('[KYC] Fetch error:', err);
       setError(errMsg);
       return null;
     } finally {

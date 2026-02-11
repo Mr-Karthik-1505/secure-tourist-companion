@@ -92,8 +92,8 @@ export default function MyId() {
     });
   };
 
-  // Mock encrypted share URL
-  const shareUrl = `https://tourist-safety.io/verify/${user.id}?token=enc_${Math.random().toString(36).slice(2, 10)}`;
+  // Mock encrypted share URL — using crypto.randomUUID for unpredictable tokens
+  const shareUrl = `https://tourist-safety.io/verify/${user.id}?token=enc_${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`;
 
   return (
     <MainLayout>
