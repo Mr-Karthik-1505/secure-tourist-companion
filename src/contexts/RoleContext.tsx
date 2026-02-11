@@ -80,8 +80,8 @@ const roleHierarchy: UserRole[] = ['tourist', 'verifier', 'authority', 'admin'];
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-  // Default to tourist role - in real app this would come from authentication
-  const [currentRole, setCurrentRole] = useState<UserRole>('admin');
+  // Default to tourist (least privilege). In production, derive from authenticated session.
+  const [currentRole, setCurrentRole] = useState<UserRole>('tourist');
 
   const permissions = rolePermissions[currentRole];
 

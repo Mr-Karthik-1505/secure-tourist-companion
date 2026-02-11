@@ -35,6 +35,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useKYC } from "@/hooks/useKYC";
+import { registrationStep1Schema, registrationStep2Schema, validateFile } from "@/lib/validation";
 
 const steps = [
   { id: 1, title: "Personal Info", icon: User },
@@ -92,16 +93,39 @@ export default function Register() {
     const newErrors: Partial<Record<keyof FormData, string>> = {};
 
     if (step === 1) {
-      if (!formData.name.trim()) newErrors.name = "Name is required";
-      if (!formData.passport.trim()) newErrors.passport = "Passport/Aadhaar is required";
-      if (!formData.country) newErrors.country = "Country is required";
+      const result = registrationStep1Schema.safeParse({
+        name: formData.name,
+        passport: formData.passport,
+        country: formData.country,
+      });
+      if (!result.success) {
+        result.error.issues.forEach((issue) => {
+          const field = issue.path[0] as keyof FormData;
+          if (!newErrors[field]) newErrors[field] = issue.message;
+        });
+      }
     } else if (step === 2) {
-      if (!formData.arrivalDate) newErrors.arrivalDate = "Arrival date is required";
-      if (!formData.departureDate) newErrors.departureDate = "Departure date is required";
-      if (!formData.emergencyName.trim()) newErrors.emergencyName = "Emergency contact name is required";
-      if (!formData.emergencyPhone.trim()) newErrors.emergencyPhone = "Emergency contact phone is required";
+      const result = registrationStep2Schema.safeParse({
+        arrivalDate: formData.arrivalDate,
+        departureDate: formData.departureDate,
+        accommodation: formData.accommodation,
+        emergencyName: formData.emergencyName,
+        emergencyPhone: formData.emergencyPhone,
+        emergencyRelation: formData.emergencyRelation,
+      });
+      if (!result.success) {
+        result.error.issues.forEach((issue) => {
+          const field = issue.path[0] as keyof FormData;
+          if (!newErrors[field]) newErrors[field] = issue.message;
+        });
+      }
     } else if (step === 3) {
-      if (!formData.file) newErrors.file = "Please upload your documents";
+      if (!formData.file) {
+        newErrors.file = "Please upload your documents";
+      } else {
+        const fileValidation = validateFile(formData.file);
+        if (!fileValidation.valid) newErrors.file = fileValidation.error!;
+      }
     }
 
     setErrors(newErrors);
@@ -128,6 +152,11 @@ export default function Register() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const fileCheck = validateFile(file);
+      if (!fileCheck.valid) {
+        setErrors((prev) => ({ ...prev, file: fileCheck.error }));
+        return;
+      }
       setFormData((prev) => ({ ...prev, file }));
       setErrors((prev) => ({ ...prev, file: undefined }));
       

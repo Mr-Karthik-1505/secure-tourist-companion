@@ -41,9 +41,18 @@ export async function apiRequest<T>(
     ...headers,
   };
   
-  // Add auth header if API key exists
+  // Require API key for all requests to protected endpoints
   if (apiKey) {
     requestHeaders['x-api-key'] = apiKey;
+  } else {
+    console.warn('[API] No API key configured. Requests to protected endpoints will likely fail.');
+    return {
+      success: false,
+      error: {
+        code: 'AUTH_MISSING',
+        message: 'API key is required. Configure it via settings before making requests.',
+      },
+    };
   }
   
   // Add content-type for JSON (not for FormData)
