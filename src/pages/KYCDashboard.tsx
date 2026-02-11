@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useKYC } from "@/hooks/useKYC";
 import usersData from "@/data/users.json";
+import { ethereumAddressSchema, validateFile, sanitizeSearchQuery } from "@/lib/validation";
 
 interface KYCUser {
   id: string;
@@ -66,10 +67,11 @@ export default function KYCDashboard() {
     file: null as File | null,
   });
 
+  const sanitizedQuery = sanitizeSearchQuery(searchQuery);
   const filteredUsers = users.filter(
     (user) =>
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.address.toLowerCase().includes(searchQuery.toLowerCase())
+      user.name.toLowerCase().includes(sanitizedQuery.toLowerCase()) ||
+      user.address.toLowerCase().includes(sanitizedQuery.toLowerCase())
   );
 
   const statusColors: Record<string, string> = {
@@ -109,10 +111,11 @@ export default function KYCDashboard() {
   };
 
   const handleAddKYC = async () => {
-    if (!newKYC.address.startsWith("0x") || newKYC.address.length !== 42) {
+    const addrResult = ethereumAddressSchema.safeParse(newKYC.address);
+    if (!addrResult.success) {
       toast({
         title: "Invalid Address",
-        description: "Please enter a valid Ethereum address.",
+        description: addrResult.error.issues[0].message,
         variant: "destructive",
       });
       return;
@@ -122,6 +125,16 @@ export default function KYCDashboard() {
       toast({
         title: "No File",
         description: "Please upload a KYC document.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const fileCheck = validateFile(newKYC.file);
+    if (!fileCheck.valid) {
+      toast({
+        title: "Invalid File",
+        description: fileCheck.error!,
         variant: "destructive",
       });
       return;
