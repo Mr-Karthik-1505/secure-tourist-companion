@@ -106,8 +106,6 @@ export function RoleProvider({ children }: { children: ReactNode }) {
 
   const setRole = useCallback((role: UserRole) => {
     setCurrentRole(role);
-    // In production, this would trigger a server-side validation
-    console.log(`[MOCK] Role changed to: ${role}`);
   }, []);
 
   return (

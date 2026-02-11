@@ -45,7 +45,7 @@ export async function apiRequest<T>(
   if (apiKey) {
     requestHeaders['x-api-key'] = apiKey;
   } else {
-    console.warn('[API] No API key configured. Requests to protected endpoints will likely fail.');
+    // No API key — silently reject
     return {
       success: false,
       error: {
@@ -108,7 +108,7 @@ export async function apiRequest<T>(
         };
       }
       
-      console.error('[API] Network error:', error.message);
+      // Network error — return generic message
       return {
         success: false,
         error: {
