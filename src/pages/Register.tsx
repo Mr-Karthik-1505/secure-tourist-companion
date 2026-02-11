@@ -180,7 +180,10 @@ export default function Register() {
     setIsProcessing(true);
 
     // Generate mock wallet address for demo
-    const mockUserAddress = "0x" + Math.random().toString(16).slice(2, 42).padEnd(40, "0");
+    // Use crypto.getRandomValues for unpredictable mock addresses
+    const addrBytes = new Uint8Array(20);
+    crypto.getRandomValues(addrBytes);
+    const mockUserAddress = "0x" + Array.from(addrBytes).map(b => b.toString(16).padStart(2, '0')).join('');
 
     // Try real API upload
     if (formData.file) {
@@ -197,10 +200,12 @@ export default function Register() {
     // Mock fallback if API unavailable
     setTimeout(() => {
       setIsProcessing(false);
-      setGeneratedId("0x" + Math.random().toString(16).slice(2, 18));
+      setGeneratedId("0x" + crypto.randomUUID().replace(/-/g, '').slice(0, 16));
+      const mockBytes = new Uint8Array(32);
+      crypto.getRandomValues(mockBytes);
       setUploadResult({
-        cid: "Qm" + Math.random().toString(36).slice(2, 12),
-        txHash: "0x" + Math.random().toString(16).slice(2, 66),
+        cid: "Qm" + crypto.randomUUID().replace(/-/g, '').slice(0, 10),
+        txHash: "0x" + Array.from(mockBytes).map(b => b.toString(16).padStart(2, '0')).join(''),
       });
     }, 3000);
   };

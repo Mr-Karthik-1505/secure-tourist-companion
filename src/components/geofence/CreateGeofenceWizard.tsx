@@ -92,20 +92,31 @@ export function CreateGeofenceWizard({
     const newErrors: Record<string, string> = {};
 
     if (stepNum === 2) {
-      if (!formData.lat || isNaN(parseFloat(formData.lat))) {
-        newErrors.lat = "Valid latitude required";
+      const lat = parseFloat(formData.lat);
+      const lng = parseFloat(formData.lng);
+      if (!formData.lat || isNaN(lat) || lat < -90 || lat > 90) {
+        newErrors.lat = "Latitude must be between -90 and 90";
       }
-      if (!formData.lng || isNaN(parseFloat(formData.lng))) {
-        newErrors.lng = "Valid longitude required";
+      if (!formData.lng || isNaN(lng) || lng < -180 || lng > 180) {
+        newErrors.lng = "Longitude must be between -180 and 180";
       }
-      if (formData.fenceType === "circle" && (!formData.radius || isNaN(parseFloat(formData.radius)))) {
-        newErrors.radius = "Valid radius required";
+      if (formData.fenceType === "circle") {
+        const radius = parseFloat(formData.radius);
+        if (!formData.radius || isNaN(radius) || radius <= 0 || radius > 100000) {
+          newErrors.radius = "Radius must be between 1 and 100,000 meters";
+        }
       }
     }
 
     if (stepNum === 3) {
-      if (!formData.name.trim()) {
+      const name = formData.name.trim();
+      if (!name) {
         newErrors.name = "Name is required";
+      } else if (name.length > 100) {
+        newErrors.name = "Name must be under 100 characters";
+      }
+      if (formData.description && formData.description.length > 500) {
+        newErrors.description = "Description must be under 500 characters";
       }
     }
 

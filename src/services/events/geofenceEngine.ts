@@ -122,7 +122,7 @@ function getSeverityForZone(zoneType: string, eventType: 'entry' | 'exit'): 'low
 
 // Helper: Generate unique ID
 function generateId(prefix: string): string {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `${prefix}_${Date.now()}_${crypto.randomUUID().replace(/-/g, '').slice(0, 9)}`;
 }
 
 // Helper: Calculate SLA deadline based on priority
