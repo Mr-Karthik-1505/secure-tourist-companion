@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { Loader } from "@googlemaps/js-api-loader";
 import * as turf from "@turf/turf";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -16,16 +15,12 @@ import {
   Square,
   Pencil,
   Trash2,
-  Eye,
-  EyeOff,
   Users,
   MapPin,
 } from "lucide-react";
 import { MapTourist, MapGeofence, STATUS_COLORS, FENCE_TYPE_COLORS } from "./types";
 import { MapInfoDrawer } from "./MapInfoDrawer";
-
-// Default to demo token - user should provide their own
-const MAPBOX_TOKEN = "pk.eyJ1IjoibG92YWJsZS1kZW1vIiwiYSI6ImNsdzV4MzBweTBhYnQycXF4NzBzNmRyMzgifQ.demo";
+import { supabase } from "@/integrations/supabase/client";
 
 interface MapboxMapProps {
   tourists?: MapTourist[];
@@ -52,12 +47,13 @@ export function MapboxMap({
   onUpdateFence,
   onDeleteFence,
   className,
-  mapboxToken,
 }: MapboxMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
-  const markersRef = useRef<mapboxgl.Marker[]>([]);
-  
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
+  const polygonsRef = useRef<google.maps.Polygon[]>([]);
+  const circlesRef = useRef<google.maps.Circle[]>([]);
+
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapStyle, setMapStyle] = useState<"streets" | "satellite">("streets");
   const [showLayers, setShowLayers] = useState(false);
@@ -69,79 +65,95 @@ export function MapboxMap({
     type: "tourist" | "geofence";
     data: MapTourist | MapGeofence;
   } | null>(null);
-  const [tokenInput, setTokenInput] = useState("");
-  const [activeToken, setActiveToken] = useState(mapboxToken || "");
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const { hasPermission, currentRole } = useRole();
   const canEditGeofences = hasPermission("canManageGeofence");
 
-  // Bangkok center for demo
-  const defaultCenter: [number, number] = [100.5018, 13.7563];
+  const defaultCenter = { lat: 13.7563, lng: 100.5018 };
   const defaultZoom = 12;
 
-  // Initialize map
+  // Fetch API key from edge function
   useEffect(() => {
-    if (!mapContainer.current || map.current) return;
-    if (!activeToken) return;
+    async function fetchKey() {
+      try {
+        const { data, error: fnError } = await supabase.functions.invoke("get-maps-key");
+        if (fnError) throw fnError;
+        if (data?.key) {
+          setApiKey(data.key);
+        } else {
+          setError("Google Maps API key not configured");
+        }
+      } catch (err) {
+        setError("Failed to load map configuration");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchKey();
+  }, []);
 
-    mapboxgl.accessToken = activeToken;
+  // Initialize Google Map
+  useEffect(() => {
+    if (!mapContainer.current || !apiKey || mapRef.current) return;
 
-    try {
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: mapStyle === "streets" 
-          ? "mapbox://styles/mapbox/streets-v12"
-          : "mapbox://styles/mapbox/satellite-streets-v12",
+    const loader = new Loader({
+      apiKey,
+      version: "weekly",
+      libraries: ["marker", "drawing", "geometry"],
+    });
+
+    loader.importLibrary("maps").then(({ Map }) => {
+      const map = new Map(mapContainer.current!, {
         center: defaultCenter,
         zoom: defaultZoom,
-        pitch: 0,
+        mapId: "geofence-map",
+        mapTypeId: mapStyle === "satellite" ? "satellite" : "roadmap",
+        disableDefaultUI: true,
+        zoomControl: false,
+        gestureHandling: "greedy",
+        styles: mapStyle === "streets" ? [
+          { featureType: "poi", stylers: [{ visibility: "off" }] },
+          { featureType: "transit", stylers: [{ visibility: "simplified" }] },
+        ] : undefined,
       });
 
-      map.current.addControl(
-        new mapboxgl.NavigationControl({ showCompass: false }),
-        "top-right"
-      );
-
-      map.current.on("load", () => {
-        setMapLoaded(true);
+      map.addListener("click", (e: google.maps.MapMouseEvent) => {
+        handleMapClick(e);
       });
 
-      map.current.on("click", handleMapClick);
+      mapRef.current = map;
+      setMapLoaded(true);
+    }).catch(() => {
+      setError("Failed to load Google Maps");
+    });
 
-      return () => {
-        map.current?.remove();
-        map.current = null;
-      };
-    } catch (error) {
-      console.error("Map initialization error:", error);
-    }
-  }, [activeToken, mapStyle]);
+    return () => {
+      mapRef.current = null;
+    };
+  }, [apiKey]);
 
-  // Update map style
+  // Update map type
   useEffect(() => {
-    if (!map.current || !mapLoaded) return;
-    
-    const styleUrl = mapStyle === "streets"
-      ? "mapbox://styles/mapbox/streets-v12"
-      : "mapbox://styles/mapbox/satellite-streets-v12";
-    
-    map.current.setStyle(styleUrl);
-  }, [mapStyle, mapLoaded]);
+    if (!mapRef.current) return;
+    mapRef.current.setMapTypeId(mapStyle === "satellite" ? "satellite" : "roadmap");
+  }, [mapStyle]);
 
   // Render tourist markers
   useEffect(() => {
-    if (!map.current || !mapLoaded) return;
+    if (!mapRef.current || !mapLoaded) return;
 
     // Clear existing markers
-    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current.forEach((m) => (m.map = null));
     markersRef.current = [];
 
     if (!showTourists) return;
 
     tourists.forEach((tourist) => {
-      const el = document.createElement("div");
-      el.className = "tourist-marker";
-      el.style.cssText = `
+      const markerEl = document.createElement("div");
+      markerEl.style.cssText = `
         width: 14px;
         height: 14px;
         border-radius: 50%;
@@ -151,37 +163,29 @@ export function MapboxMap({
         box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         transition: transform 0.15s ease;
       `;
-      el.setAttribute("role", "button");
-      el.setAttribute("tabindex", "0");
-      el.setAttribute("aria-label", `Tourist: ${tourist.name}, Status: ${tourist.status}`);
+      markerEl.setAttribute("role", "button");
+      markerEl.setAttribute("aria-label", `Tourist: ${tourist.name}, Status: ${tourist.status}`);
 
-      el.addEventListener("mouseenter", () => {
-        el.style.transform = "scale(1.2)";
-        el.style.boxShadow = `0 0 8px ${STATUS_COLORS[tourist.status]}`;
+      markerEl.addEventListener("mouseenter", () => {
+        markerEl.style.transform = "scale(1.3)";
+        markerEl.style.boxShadow = `0 0 8px ${STATUS_COLORS[tourist.status]}`;
       });
-
-      el.addEventListener("mouseleave", () => {
-        el.style.transform = "scale(1)";
-        el.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
+      markerEl.addEventListener("mouseleave", () => {
+        markerEl.style.transform = "scale(1)";
+        markerEl.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
       });
-
-      el.addEventListener("click", (e) => {
+      markerEl.addEventListener("click", (e) => {
         e.stopPropagation();
         setSelectedItem({ type: "tourist", data: tourist });
         onSelectTourist?.(tourist);
       });
 
-      el.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          setSelectedItem({ type: "tourist", data: tourist });
-          onSelectTourist?.(tourist);
-        }
+      const marker = new google.maps.marker.AdvancedMarkerElement({
+        map: mapRef.current!,
+        position: { lat: tourist.lat, lng: tourist.lng },
+        content: markerEl,
+        title: tourist.name,
       });
-
-      const marker = new mapboxgl.Marker(el)
-        .setLngLat([tourist.lng, tourist.lat])
-        .addTo(map.current!);
 
       markersRef.current.push(marker);
     });
@@ -189,166 +193,127 @@ export function MapboxMap({
 
   // Render geofences
   useEffect(() => {
-    if (!map.current || !mapLoaded) return;
+    if (!mapRef.current || !mapLoaded) return;
 
-    // Remove existing geofence layers/sources
-    geofences.forEach((fence) => {
-      if (map.current?.getLayer(`fence-fill-${fence.id}`)) {
-        map.current.removeLayer(`fence-fill-${fence.id}`);
-      }
-      if (map.current?.getLayer(`fence-line-${fence.id}`)) {
-        map.current.removeLayer(`fence-line-${fence.id}`);
-      }
-      if (map.current?.getSource(`fence-${fence.id}`)) {
-        map.current.removeSource(`fence-${fence.id}`);
-      }
-    });
+    // Clear existing polygons/circles
+    polygonsRef.current.forEach((p) => p.setMap(null));
+    polygonsRef.current = [];
+    circlesRef.current.forEach((c) => c.setMap(null));
+    circlesRef.current = [];
 
     if (!showGeofences) return;
 
     geofences.forEach((fence) => {
-      let coordinates: [number, number][] = [];
-      
-      if (fence.coordinates && fence.coordinates.length > 0) {
-        coordinates = fence.coordinates;
-      } else if (fence.center && fence.radius) {
-        // Generate circle polygon using turf
-        const circle = turf.circle(fence.center, fence.radius / 1000, {
-          steps: 64,
-          units: "kilometers",
-        });
-        coordinates = circle.geometry.coordinates[0] as [number, number][];
-      }
-
-      if (coordinates.length === 0) return;
-
       const isBreached = breachedFenceId === fence.id;
       const isSelected = selectedFenceId === fence.id;
       const fenceType = fence.fenceType || "monitored_zone";
-      const colors = isBreached 
+      const colors = isBreached
         ? { border: "#E25B4A", fill: "rgba(226, 91, 74, 0.15)" }
         : FENCE_TYPE_COLORS[fenceType] || FENCE_TYPE_COLORS.monitored_zone;
 
-      try {
-        map.current?.addSource(`fence-${fence.id}`, {
-          type: "geojson",
-          data: {
-            type: "Feature",
-            properties: {
-              id: fence.id,
-              name: fence.name,
-              status: fence.status,
-            },
-            geometry: {
-              type: "Polygon",
-              coordinates: [coordinates],
-            },
-          },
+      if (fence.type === "circle" && fence.center && fence.radius) {
+        const circle = new google.maps.Circle({
+          map: mapRef.current!,
+          center: { lat: fence.center[1], lng: fence.center[0] },
+          radius: fence.radius,
+          fillColor: colors.border,
+          fillOpacity: fence.status === "inactive" ? 0.05 : 0.1,
+          strokeColor: colors.border,
+          strokeWeight: isSelected ? 3 : 2,
+          strokeOpacity: 0.8,
+          clickable: true,
         });
 
-        map.current?.addLayer({
-          id: `fence-fill-${fence.id}`,
-          type: "fill",
-          source: `fence-${fence.id}`,
-          paint: {
-            "fill-color": colors.fill,
-            "fill-opacity": fence.status === "inactive" ? 0.3 : 0.6,
-          },
-        });
-
-        map.current?.addLayer({
-          id: `fence-line-${fence.id}`,
-          type: "line",
-          source: `fence-${fence.id}`,
-          paint: {
-            "line-color": colors.border,
-            "line-width": isSelected ? 3 : 2,
-            "line-dasharray": fence.status === "inactive" ? [2, 2] : [1, 0],
-          },
-        });
-
-        // Add click handler
-        map.current?.on("click", `fence-fill-${fence.id}`, () => {
+        circle.addListener("click", () => {
           setSelectedItem({ type: "geofence", data: fence });
           onSelectFence?.(fence);
         });
 
-        map.current?.on("mouseenter", `fence-fill-${fence.id}`, () => {
-          if (map.current) {
-            map.current.getCanvas().style.cursor = "pointer";
-          }
+        circlesRef.current.push(circle);
+      } else {
+        let coords: google.maps.LatLngLiteral[] = [];
+
+        if (fence.coordinates && fence.coordinates.length > 0) {
+          coords = fence.coordinates.map((c) => ({ lat: c[1], lng: c[0] }));
+        } else if (fence.center && fence.radius) {
+          const turfCircle = turf.circle(fence.center, fence.radius / 1000, {
+            steps: 64,
+            units: "kilometers",
+          });
+          coords = (turfCircle.geometry.coordinates[0] as [number, number][]).map((c) => ({
+            lat: c[1],
+            lng: c[0],
+          }));
+        }
+
+        if (coords.length === 0) return;
+
+        const polygon = new google.maps.Polygon({
+          map: mapRef.current!,
+          paths: coords,
+          fillColor: colors.border,
+          fillOpacity: fence.status === "inactive" ? 0.05 : 0.1,
+          strokeColor: colors.border,
+          strokeWeight: isSelected ? 3 : 2,
+          strokeOpacity: 0.8,
+          clickable: true,
         });
 
-        map.current?.on("mouseleave", `fence-fill-${fence.id}`, () => {
-          if (map.current) {
-            map.current.getCanvas().style.cursor = "";
-          }
+        polygon.addListener("click", () => {
+          setSelectedItem({ type: "geofence", data: fence });
+          onSelectFence?.(fence);
         });
-      } catch (error) {
-        console.error(`Error adding geofence ${fence.id}:`, error);
+
+        polygonsRef.current.push(polygon);
       }
     });
   }, [geofences, showGeofences, mapLoaded, selectedFenceId, breachedFenceId, onSelectFence]);
 
   // Handle map clicks for drawing
-  const handleMapClick = useCallback((e: mapboxgl.MapMouseEvent) => {
-    if (!drawMode || !canEditGeofences) return;
+  const handleMapClick = useCallback(
+    (e: google.maps.MapMouseEvent) => {
+      if (!drawMode || !canEditGeofences || !e.latLng) return;
 
-    const coord: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+      const coord: [number, number] = [e.latLng.lng(), e.latLng.lat()];
 
-    if (drawMode === "circle") {
-      if (drawCoords.length === 0) {
-        // First click: set center
-        setDrawCoords([coord]);
-      } else {
-        // Second click: set radius
-        const center = drawCoords[0];
-        const radius = turf.distance(center, coord, { units: "meters" });
-        
-        onCreateFence?.({
-          type: "circle",
-          center,
-          radius,
-          status: "active",
-          severity: "medium",
-        });
-        
-        setDrawMode(null);
-        setDrawCoords([]);
+      if (drawMode === "circle") {
+        if (drawCoords.length === 0) {
+          setDrawCoords([coord]);
+        } else {
+          const center = drawCoords[0];
+          const radius = turf.distance(center, coord, { units: "meters" });
+          onCreateFence?.({ type: "circle", center, radius, status: "active", severity: "medium" });
+          setDrawMode(null);
+          setDrawCoords([]);
+        }
+      } else if (drawMode === "polygon") {
+        setDrawCoords((prev) => [...prev, coord]);
+      } else if (drawMode === "rectangle") {
+        if (drawCoords.length === 0) {
+          setDrawCoords([coord]);
+        } else {
+          const [first] = drawCoords;
+          const coordinates: [number, number][] = [
+            first,
+            [coord[0], first[1]],
+            coord,
+            [first[0], coord[1]],
+            first,
+          ];
+          onCreateFence?.({ type: "rectangle", coordinates, status: "active", severity: "medium" });
+          setDrawMode(null);
+          setDrawCoords([]);
+        }
       }
-    } else if (drawMode === "polygon") {
-      setDrawCoords((prev) => [...prev, coord]);
-    } else if (drawMode === "rectangle") {
-      if (drawCoords.length === 0) {
-        setDrawCoords([coord]);
-      } else {
-        const [first] = drawCoords;
-        const coordinates: [number, number][] = [
-          first,
-          [coord[0], first[1]],
-          coord,
-          [first[0], coord[1]],
-          first,
-        ];
-        
-        onCreateFence?.({
-          type: "rectangle",
-          coordinates,
-          status: "active",
-          severity: "medium",
-        });
-        
-        setDrawMode(null);
-        setDrawCoords([]);
-      }
-    }
-  }, [drawMode, drawCoords, canEditGeofences, onCreateFence]);
+    },
+    [drawMode, drawCoords, canEditGeofences, onCreateFence]
+  );
 
-  // Complete polygon drawing on double-click
+  // Complete polygon on double-click
   useEffect(() => {
-    if (!map.current) return;
+    if (!mapRef.current) return;
 
-    const handleDblClick = () => {
+    const listener = mapRef.current.addListener("dblclick", () => {
       if (drawMode === "polygon" && drawCoords.length >= 3) {
         onCreateFence?.({
           type: "polygon",
@@ -356,19 +321,15 @@ export function MapboxMap({
           status: "active",
           severity: "medium",
         });
-        
         setDrawMode(null);
         setDrawCoords([]);
       }
-    };
+    });
 
-    map.current.on("dblclick", handleDblClick);
-    return () => {
-      map.current?.off("dblclick", handleDblClick);
-    };
+    return () => google.maps.event.removeListener(listener);
   }, [drawMode, drawCoords, onCreateFence]);
 
-  // Cancel draw mode on Escape
+  // Cancel draw on Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -377,44 +338,39 @@ export function MapboxMap({
         setSelectedItem(null);
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Map controls
-  const handleZoomIn = () => map.current?.zoomIn();
-  const handleZoomOut = () => map.current?.zoomOut();
+  const handleZoomIn = () => {
+    if (mapRef.current) mapRef.current.setZoom((mapRef.current.getZoom() || defaultZoom) + 1);
+  };
+  const handleZoomOut = () => {
+    if (mapRef.current) mapRef.current.setZoom((mapRef.current.getZoom() || defaultZoom) - 1);
+  };
   const handleCenter = () => {
-    map.current?.flyTo({ center: defaultCenter, zoom: defaultZoom });
+    mapRef.current?.panTo(defaultCenter);
+    mapRef.current?.setZoom(defaultZoom);
   };
 
-  // Token input if no token provided
-  if (!activeToken) {
+  // Loading / error states
+  if (loading) {
     return (
-      <div className={cn("relative rounded-xl overflow-hidden border border-border bg-muted", className)}>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="bg-card border border-border rounded-xl p-6 max-w-md mx-4 shadow-lg">
-            <h3 className="text-lg font-semibold text-foreground mb-2">Mapbox Token Required</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Enter your Mapbox public token to enable the real-world map.
-              Get one at <a href="https://mapbox.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">mapbox.com</a>
-            </p>
-            <input
-              type="text"
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              placeholder="pk.eyJ1..."
-              className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm mb-3"
-            />
-            <Button
-              onClick={() => setActiveToken(tokenInput)}
-              disabled={!tokenInput.startsWith("pk.")}
-              className="w-full"
-            >
-              Enable Map
-            </Button>
-          </div>
+      <div className={cn("relative rounded-xl overflow-hidden border border-border bg-muted flex items-center justify-center", className)}>
+        <div className="text-center space-y-2">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-sm text-muted-foreground">Loading map...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={cn("relative rounded-xl overflow-hidden border border-border bg-muted flex items-center justify-center", className)}>
+        <div className="bg-card border border-border rounded-xl p-6 max-w-md mx-4 shadow-lg text-center">
+          <h3 className="text-lg font-semibold text-foreground mb-2">Map Unavailable</h3>
+          <p className="text-sm text-muted-foreground">{error}</p>
         </div>
       </div>
     );
@@ -424,7 +380,7 @@ export function MapboxMap({
     <div
       className={cn("relative rounded-xl overflow-hidden border border-border", className)}
       role="application"
-      aria-label="Interactive geofence map. Use keyboard to navigate markers and controls."
+      aria-label="Interactive geofence map"
     >
       {/* Map Container */}
       <div ref={mapContainer} className="absolute inset-0" />
@@ -434,24 +390,16 @@ export function MapboxMap({
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none">
           <div className="bg-card/95 backdrop-blur-sm px-6 py-4 rounded-xl shadow-lg border border-primary">
             <p className="text-foreground font-medium text-center">
-              {drawMode === "circle" && (
-                drawCoords.length === 0 
-                  ? "Click to set center point" 
-                  : "Click to set radius"
-              )}
+              {drawMode === "circle" && (drawCoords.length === 0 ? "Click to set center point" : "Click to set radius")}
               {drawMode === "polygon" && "Click points to draw, double-click to finish"}
-              {drawMode === "rectangle" && (
-                drawCoords.length === 0 
-                  ? "Click first corner" 
-                  : "Click opposite corner"
-              )}
+              {drawMode === "rectangle" && (drawCoords.length === 0 ? "Click first corner" : "Click opposite corner")}
             </p>
             <p className="text-muted-foreground text-sm text-center mt-1">Press Escape to cancel</p>
           </div>
         </div>
       )}
 
-      {/* Drawing Tools - Left Side (Authority/Admin only) */}
+      {/* Drawing Tools - Left Side */}
       {canEditGeofences && (
         <div className="absolute top-4 left-4 flex flex-col gap-2 z-20">
           <Tooltip>
@@ -542,13 +490,7 @@ export function MapboxMap({
       <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="w-9 h-9 bg-card border-border shadow-sm"
-              onClick={handleZoomIn}
-              aria-label="Zoom in"
-            >
+            <Button variant="outline" size="icon" className="w-9 h-9 bg-card border-border shadow-sm" onClick={handleZoomIn} aria-label="Zoom in">
               <Plus className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
@@ -557,13 +499,7 @@ export function MapboxMap({
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="w-9 h-9 bg-card border-border shadow-sm"
-              onClick={handleZoomOut}
-              aria-label="Zoom out"
-            >
+            <Button variant="outline" size="icon" className="w-9 h-9 bg-card border-border shadow-sm" onClick={handleZoomOut} aria-label="Zoom out">
               <Minus className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
@@ -572,13 +508,7 @@ export function MapboxMap({
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="w-9 h-9 bg-card border-border shadow-sm"
-              onClick={handleCenter}
-              aria-label="Center map"
-            >
+            <Button variant="outline" size="icon" className="w-9 h-9 bg-card border-border shadow-sm" onClick={handleCenter} aria-label="Center map">
               <Crosshair className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
@@ -587,13 +517,7 @@ export function MapboxMap({
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="w-9 h-9 bg-card border-border shadow-sm"
-              onClick={() => setShowLayers(!showLayers)}
-              aria-label="Toggle layers"
-            >
+            <Button variant="outline" size="icon" className="w-9 h-9 bg-card border-border shadow-sm" onClick={() => setShowLayers(!showLayers)} aria-label="Toggle layers">
               <Layers className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
@@ -607,19 +531,14 @@ export function MapboxMap({
             <Button
               variant="outline"
               size="icon"
-              className={cn(
-                "w-9 h-9 bg-card border-border shadow-sm",
-                showTourists && "bg-primary/10 border-primary"
-              )}
+              className={cn("w-9 h-9 bg-card border-border shadow-sm", showTourists && "bg-primary/10 border-primary")}
               onClick={() => setShowTourists(!showTourists)}
               aria-label="Toggle tourists"
             >
               <Users className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="left">
-            {showTourists ? "Hide" : "Show"} Tourists
-          </TooltipContent>
+          <TooltipContent side="left">{showTourists ? "Hide" : "Show"} Tourists</TooltipContent>
         </Tooltip>
 
         <Tooltip>
@@ -627,19 +546,14 @@ export function MapboxMap({
             <Button
               variant="outline"
               size="icon"
-              className={cn(
-                "w-9 h-9 bg-card border-border shadow-sm",
-                showGeofences && "bg-primary/10 border-primary"
-              )}
+              className={cn("w-9 h-9 bg-card border-border shadow-sm", showGeofences && "bg-primary/10 border-primary")}
               onClick={() => setShowGeofences(!showGeofences)}
               aria-label="Toggle geofences"
             >
               <MapPin className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="left">
-            {showGeofences ? "Hide" : "Show"} Geofences
-          </TooltipContent>
+          <TooltipContent side="left">{showGeofences ? "Hide" : "Show"} Geofences</TooltipContent>
         </Tooltip>
       </div>
 
@@ -651,9 +565,7 @@ export function MapboxMap({
             <button
               className={cn(
                 "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
-                mapStyle === "streets" 
-                  ? "bg-primary/10 text-primary border border-primary/20" 
-                  : "hover:bg-muted text-foreground"
+                mapStyle === "streets" ? "bg-primary/10 text-primary border border-primary/20" : "hover:bg-muted text-foreground"
               )}
               onClick={() => setMapStyle("streets")}
             >
@@ -662,9 +574,7 @@ export function MapboxMap({
             <button
               className={cn(
                 "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
-                mapStyle === "satellite" 
-                  ? "bg-primary/10 text-primary border border-primary/20" 
-                  : "hover:bg-muted text-foreground"
+                mapStyle === "satellite" ? "bg-primary/10 text-primary border border-primary/20" : "hover:bg-muted text-foreground"
               )}
               onClick={() => setMapStyle("satellite")}
             >
@@ -713,9 +623,7 @@ export function MapboxMap({
       <MapInfoDrawer
         item={selectedItem}
         onClose={() => setSelectedItem(null)}
-        onEdit={canEditGeofences && selectedItem?.type === "geofence" ? () => {
-          // Navigate to edit
-        } : undefined}
+        onEdit={canEditGeofences && selectedItem?.type === "geofence" ? () => {} : undefined}
       />
 
       {/* Screen Reader Announcements */}
