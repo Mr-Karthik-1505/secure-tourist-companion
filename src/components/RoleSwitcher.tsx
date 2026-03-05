@@ -1,13 +1,7 @@
 import { useRole, UserRole } from '@/contexts/RoleContext';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Shield, User, CheckCircle, Building2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Shield, User, CheckCircle, Building2, LogOut } from 'lucide-react';
 
 const roleConfig: Record<UserRole, { label: string; icon: React.ElementType; color: string }> = {
   tourist: { label: 'Tourist', icon: User, color: 'bg-blue-500' },
@@ -17,9 +11,11 @@ const roleConfig: Record<UserRole, { label: string; icon: React.ElementType; col
 };
 
 export function RoleSwitcher() {
-  const { currentRole, setRole } = useRole();
+  const { currentRole, isAuthenticated, signOut } = useRole();
   const config = roleConfig[currentRole];
   const Icon = config.icon;
+
+  if (!isAuthenticated) return null;
 
   return (
     <div className="flex items-center gap-2">
@@ -27,24 +23,10 @@ export function RoleSwitcher() {
         <Icon className="w-3.5 h-3.5" />
         <span className="text-xs font-medium">{config.label}</span>
       </Badge>
-      <Select value={currentRole} onValueChange={(value) => setRole(value as UserRole)}>
-        <SelectTrigger 
-          className="w-[130px] h-8 text-xs" 
-          aria-label="Switch user role"
-        >
-          <SelectValue placeholder="Select role" />
-        </SelectTrigger>
-        <SelectContent>
-          {Object.entries(roleConfig).map(([role, { label, icon: RoleIcon }]) => (
-            <SelectItem key={role} value={role} className="text-xs">
-              <div className="flex items-center gap-2">
-                <RoleIcon className="w-3.5 h-3.5" />
-                {label}
-              </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <Button variant="ghost" size="sm" onClick={signOut} className="h-8 text-xs gap-1.5">
+        <LogOut className="w-3.5 h-3.5" />
+        Sign Out
+      </Button>
     </div>
   );
 }
