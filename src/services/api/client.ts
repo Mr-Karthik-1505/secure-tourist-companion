@@ -1,6 +1,7 @@
 // API Client with error handling and auth support
 
 import { API_CONFIG, getApiUrl } from './config';
+import { supabase } from '@/integrations/supabase/client';
 import type { ApiResponse } from './types';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
@@ -12,22 +13,7 @@ interface RequestOptions {
   isFormData?: boolean;
 }
 
-// Get API key from localStorage or env (for demo)
-const getApiKey = (): string | null => {
-  return localStorage.getItem('kyc_api_key') || import.meta.env.VITE_API_KEY || null;
-};
-
-// Set API key
-export const setApiKey = (key: string): void => {
-  localStorage.setItem('kyc_api_key', key);
-};
-
-// Clear API key
-export const clearApiKey = (): void => {
-  localStorage.removeItem('kyc_api_key');
-};
-
-// Main fetch wrapper
+// Main fetch wrapper - uses Supabase JWT for authentication
 export async function apiRequest<T>(
   endpoint: string,
   options: RequestOptions = {}
@@ -35,22 +21,22 @@ export async function apiRequest<T>(
   const { method = 'GET', body, headers = {}, isFormData = false } = options;
   
   const url = getApiUrl(endpoint);
-  const apiKey = getApiKey();
+  
+  // Get current session token for authentication
+  const { data: { session } } = await supabase.auth.getSession();
   
   const requestHeaders: Record<string, string> = {
     ...headers,
   };
   
-  // Require API key for all requests to protected endpoints
-  if (apiKey) {
-    requestHeaders['x-api-key'] = apiKey;
+  if (session?.access_token) {
+    requestHeaders['Authorization'] = `Bearer ${session.access_token}`;
   } else {
-    // No API key — silently reject
     return {
       success: false,
       error: {
         code: 'AUTH_MISSING',
-        message: 'API key is required. Configure it via settings before making requests.',
+        message: 'Authentication required. Please sign in before making requests.',
       },
     };
   }
@@ -76,7 +62,6 @@ export async function apiRequest<T>(
     const data = await response.json();
     
     if (!response.ok) {
-      // Sanitize error responses - never expose raw server details to client
       const safeMessages: Record<number, string> = {
         400: 'Invalid request. Please check your input.',
         401: 'Authentication required.',
@@ -101,29 +86,19 @@ export async function apiRequest<T>(
       if (error.name === 'AbortError') {
         return {
           success: false,
-          error: {
-            code: 'TIMEOUT',
-            message: 'Request timed out',
-          },
+          error: { code: 'TIMEOUT', message: 'Request timed out' },
         };
       }
       
-      // Network error — return generic message
       return {
         success: false,
-        error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to the server. Please check your connection.',
-        },
+        error: { code: 'NETWORK_ERROR', message: 'Unable to connect to the server. Please check your connection.' },
       };
     }
     
     return {
       success: false,
-      error: {
-        code: 'UNKNOWN_ERROR',
-        message: 'An unknown error occurred',
-      },
+      error: { code: 'UNKNOWN_ERROR', message: 'An unknown error occurred' },
     };
   }
 }

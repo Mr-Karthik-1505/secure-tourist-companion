@@ -23,7 +23,7 @@ const navItems = [
 export function Header() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { hasPermission } = useRole();
+  const { hasPermission, isAuthenticated } = useRole();
 
   const visibleNavItems = navItems.filter(item => hasPermission(item.permission));
 
@@ -57,7 +57,7 @@ export function Header() {
 
         {/* Navigation Icons */}
         <nav className="flex items-center gap-1 sm:gap-2" role="navigation" aria-label="Main navigation">
-          {visibleNavItems.map((item) => {
+          {isAuthenticated && visibleNavItems.map((item) => {
             const isActive = location.pathname === item.path;
             const Icon = item.icon;
 
@@ -89,6 +89,11 @@ export function Header() {
               </Tooltip>
             );
           })}
+          {!isAuthenticated && (
+            <Button variant="default" size="sm" onClick={() => navigate('/auth')}>
+              Sign In
+            </Button>
+          )}
         </nav>
       </div>
     </header>
